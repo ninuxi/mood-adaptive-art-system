@@ -1,0 +1,59 @@
+{
+  "name": "mood-adaptive-art-system",
+  "version": "0.1.0",
+  "description": "AI-Powered Adaptive Artistic Environment Controller",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "next": "14.0.4",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "typescript": "^5.3.3",
+    "@types/node": "^20.10.6",
+    "@types/react": "^18.2.46",
+    "@types/react-dom": "^18.2.18",
+    "tailwindcss": "^3.4.0",
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.32",
+    "framer-motion": "^10.16.16",
+    "lucide-react": "^0.303.0",
+    "recharts": "^2.8.0",
+    "three": "^0.159.0",
+    "@types/three": "^0.159.0",
+    "@react-three/fiber": "^8.15.12",
+    "@react-three/drei": "^9.92.7",
+    "zustand": "^4.4.7",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.0.0",
+    "tailwind-merge": "^2.2.0"
+  },
+  "devDependencies": {
+    "eslint": "^8.56.0",
+    "eslint-config-next": "14.0.4",
+    "@tailwindcss/typography": "^0.5.10"
+  },
+  "keywords": [
+    "ai",
+    "art",
+    "installation",
+    "interactive",
+    "mood",
+    "automation",
+    "museum",
+    "gallery",
+    "osc",
+    "dmx"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/mood-adaptive-art-system.git"
+  }
+}
