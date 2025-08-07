@@ -8,8 +8,12 @@ import {
   Eye, 
   Activity,
   TrendingUp,
-  Clock
+  Clock,
+  Brain,
+  Lightbulb,
+  Zap
 } from 'lucide-react'
+import { MoodDecisionEngine, SensorData } from '@/lib/ai/MoodDecisionEngine'
 
 interface MoodData {
   name: string
@@ -33,6 +37,9 @@ export function MoodVisualizer({ systemActive }: VisualizerProps) {
     color: '#8B5CF6',
     description: 'Quiet reflection and thoughtful observation'
   })
+
+  const [aiDecision, setAiDecision] = useState<any>(null)
+  const [decisionEngine] = useState(() => new MoodDecisionEngine())
 
   const [environmentData, setEnvironmentData] = useState({
     peopleCount: 12,
@@ -217,26 +224,63 @@ export function MoodVisualizer({ systemActive }: VisualizerProps) {
             />
           </div>
 
-          {/* Mood History Timeline */}
-          <div className="mt-8">
-            <h5 className="text-md font-medium text-white mb-3">Recent Mood Changes</h5>
-            <div className="space-y-2">
-              {[
-                { time: '14:32', mood: 'Social', duration: '8m' },
-                { time: '14:24', mood: 'Contemplative', duration: '12m' },
-                { time: '14:12', mood: 'Energetic', duration: '5m' }
-              ].map((entry, index) => (
-                <div key={index} className="flex items-center justify-between p-2 bg-white/5 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <Clock className="w-4 h-4 text-gray-400" />
-                    <span className="text-sm text-white">{entry.time}</span>
-                    <span className="text-sm text-gray-400">{entry.mood}</span>
+          {/* AI Decision Panel */}
+          {aiDecision && (
+            <div className="mt-8">
+              <h5 className="text-md font-medium text-white mb-3">AI Decision Engine</h5>
+              <div className="bg-white/5 border border-white/10 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center space-x-2">
+                    <Brain className="w-4 h-4 text-purple-400" />
+                    <span className="text-sm text-white">Recommendation: {aiDecision.recommendedMood}</span>
                   </div>
-                  <span className="text-xs text-gray-500">{entry.duration}</span>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-12 h-2 bg-white/20 rounded-full overflow-hidden">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${aiDecision.confidence * 100}%` }}
+                        className="h-full bg-green-500 rounded-full"
+                      />
+                    </div>
+                    <span className="text-xs text-white">
+                      {Math.round(aiDecision.confidence * 100)}% confident
+                    </span>
+                  </div>
                 </div>
-              ))}
+                
+                <div className="space-y-2">
+                  <h6 className="text-xs font-medium text-gray-300">AI Reasoning:</h6>
+                  {aiDecision.reasoning.map((reason: string, index: number) => (
+                    <div key={index} className="flex items-start space-x-2">
+                      <Lightbulb className="w-3 h-3 text-yellow-400 mt-0.5 flex-shrink-0" />
+                      <p className="text-xs text-gray-400">{reason}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-4 grid grid-cols-3 gap-3 text-xs">
+                  <div className="text-center">
+                    <div className="text-white font-medium">
+                      {Math.round(aiDecision.parameters.energy * 100)}%
+                    </div>
+                    <div className="text-gray-400">Energy</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-white font-medium">
+                      {Math.round(aiDecision.parameters.valence * 100)}%
+                    </div>
+                    <div className="text-gray-400">Valence</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-white font-medium">
+                      {Math.round(aiDecision.parameters.arousal * 100)}%
+                    </div>
+                    <div className="text-gray-400">Arousal</div>
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 

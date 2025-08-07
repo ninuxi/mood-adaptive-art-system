@@ -10,7 +10,8 @@ import {
   Play,
   Pause,
   Power,
-  AlertTriangle
+  AlertTriangle,
+  Sliders
 } from 'lucide-react'
 
 import { SoftwareStatusPanel } from '@/components/dashboard/SoftwareStatusPanel'
@@ -18,8 +19,10 @@ import { MoodSimulator } from '@/components/mood/MoodSimulator'
 import { LiveControl } from '@/components/dashboard/LiveControl'
 import { AnalyticsPanel } from '@/components/dashboard/AnalyticsPanel'
 import { MoodVisualizer } from '@/components/mood/MoodVisualizer'
+import { CameraVision } from '@/components/vision/CameraVision'
+import { AudioAnalysis } from '@/components/audio/AudioAnalysis'
 
-type TabType = 'overview' | 'mood' | 'control' | 'analytics'
+type TabType = 'overview' | 'vision' | 'mood' | 'control' | 'analytics'
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<TabType>('overview')
@@ -27,8 +30,9 @@ export default function Dashboard() {
 
   const tabs = [
     { id: 'overview' as TabType, label: 'Overview', icon: Activity },
-    { id: 'mood' as TabType, label: 'Mood Designer', icon: Brain },
-    { id: 'control' as TabType, label: 'Live Control', icon: Settings },
+    { id: 'vision' as TabType, label: 'AI Sensors', icon: Brain },
+    { id: 'mood' as TabType, label: 'Mood Designer', icon: Settings },
+    { id: 'control' as TabType, label: 'Live Control', icon: Sliders },
     { id: 'analytics' as TabType, label: 'Analytics', icon: BarChart3 }
   ]
 
@@ -151,6 +155,20 @@ export default function Dashboard() {
                     color="yellow"
                   />
                 </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'vision' && (
+            <div className="space-y-8">
+              <div>
+                <h2 className="text-2xl font-bold text-white mb-2">AI Sensor Systems</h2>
+                <p className="text-gray-400">Real-time computer vision and audio analysis for mood detection</p>
+              </div>
+              
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                <CameraVision isActive={systemActive} />
+                <AudioAnalysis isActive={systemActive} />
               </div>
             </div>
           )}
