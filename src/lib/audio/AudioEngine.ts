@@ -52,6 +52,7 @@ export class AudioEngine {
     if (customSettings) {
       this.settings = { ...this.settings, ...customSettings }
     }
+    // Don't set sampleRate in settings since we'll use device default
   }
 
   async initialize(): Promise<void> {
@@ -165,7 +166,7 @@ export class AudioEngine {
   private analyzeAudioData(): AudioData {
     const data = this.dataArray!
     const freqData = this.frequencyDataArray!
-    const sampleRate = this.audioContext!.sampleRate
+    const sampleRate = this.audioContext!.sampleRate // Use actual sample rate
     const nyquist = sampleRate / 2
     const binWidth = nyquist / data.length
 
