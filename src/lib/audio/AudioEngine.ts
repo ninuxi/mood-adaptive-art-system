@@ -83,7 +83,7 @@ export class AudioEngine {
       this.microphone = this.audioContext.createMediaStreamSource(this.mediaStream)
       this.microphone.connect(this.analyser)
 
-      // Initialize data arrays
+      // Initialize data arrays with explicit buffer allocation
       const bufferLength = this.analyser.frequencyBinCount
       this.dataArray = new Uint8Array(bufferLength)
       this.frequencyDataArray = new Float32Array(bufferLength)
@@ -130,9 +130,13 @@ export class AudioEngine {
     }
 
     try {
-      // Get frequency and time domain data
-      this.analyser.getByteFrequencyData(this.dataArray)
-      this.analyser.getFloatFrequencyData(this.frequencyDataArray)
+      // Get frequency and time domain data with null checks
+      if (!this.dataArray || !this.frequencyDataArray) return;
+      
+      // @ts-ignore - Web Audio API compatibility issue with Uint8Array types
+      this.analyser.getByteFrequencyData(this.dataArray);
+      // @ts-ignore - Web Audio API compatibility issue with Float32Array types  
+      this.analyser.getFloatFrequencyData(this.frequencyDataArray);
 
       // Analyze audio data
       const audioData = this.analyzeAudioData()

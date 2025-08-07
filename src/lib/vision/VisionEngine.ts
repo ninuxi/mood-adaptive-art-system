@@ -1,4 +1,4 @@
-import { Detection, ObjectDetection } from '@tensorflow-models/coco-ssd'
+import * as cocoSsd from '@tensorflow-models/coco-ssd'
 import '@tensorflow/tfjs-backend-webgl'
 import * as tf from '@tensorflow/tfjs'
 
@@ -8,7 +8,7 @@ export interface VisionData {
   crowdDensity: number
   dominantAge: 'children' | 'adults' | 'elderly' | 'mixed'
   energyLevel: number
-  boundingBoxes: Detection[]
+  boundingBoxes: cocoSsd.DetectedObject[]
   confidence: number
 }
 
@@ -20,7 +20,7 @@ export interface MovementTracker {
 }
 
 export class VisionEngine {
-  private model: ObjectDetection | null = null
+  private model: cocoSsd.ObjectDetection | null = null
   private videoElement: HTMLVideoElement | null = null
   private canvasElement: HTMLCanvasElement | null = null
   private ctx: CanvasRenderingContext2D | null = null
@@ -28,7 +28,7 @@ export class VisionEngine {
   private stream: MediaStream | null = null
   
   // Movement tracking
-  private previousDetections: Detection[] = []
+  private previousDetections: cocoSsd.DetectedObject[] = []
   private movementHistory: MovementTracker[][] = []
   private frameCount = 0
   
@@ -57,8 +57,7 @@ export class VisionEngine {
     try {
       // Load COCO-SSD model for object detection
       console.log('Loading computer vision model...')
-      const { load } = await import('@tensorflow-models/coco-ssd')
-      this.model = await load({
+      this.model = await cocoSsd.load({
         base: 'mobilenet_v2' // Faster but less accurate, good for real-time
       })
       console.log('Computer vision model loaded successfully')
@@ -177,7 +176,7 @@ export class VisionEngine {
     }
   }
 
-  private drawBoundingBoxes(detections: Detection[]): void {
+  private drawBoundingBoxes(detections: cocoSsd.DetectedObject[]): void {
     if (!this.ctx) return
 
     this.ctx.strokeStyle = '#00ff00'
@@ -204,7 +203,7 @@ export class VisionEngine {
     })
   }
 
-  private analyzeDetections(detections: Detection[]): VisionData {
+  private analyzeDetections(detections: cocoSsd.DetectedObject[]): VisionData {
     const peopleCount = detections.length
     
     // Calculate movement between frames
@@ -236,7 +235,7 @@ export class VisionEngine {
     }
   }
 
-  private calculateMovement(currentDetections: Detection[]): number {
+  private calculateMovement(currentDetections: cocoSsd.DetectedObject[]): number {
     if (this.previousDetections.length === 0 || currentDetections.length === 0) {
       return 0
     }
@@ -249,7 +248,7 @@ export class VisionEngine {
       const [curX, curY] = this.getBoundingBoxCenter(current.bbox)
       
       let minDistance = Infinity
-      let closestPrevious: Detection | null = null
+      let closestPrevious: cocoSsd.DetectedObject | null = null
 
       this.previousDetections.forEach(previous => {
         const [prevX, prevY] = this.getBoundingBoxCenter(previous.bbox)
@@ -277,7 +276,7 @@ export class VisionEngine {
     return [x + width / 2, y + height / 2]
   }
 
-  private estimateAgeDemographics(detections: Detection[]): 'children' | 'adults' | 'elderly' | 'mixed' {
+  private estimateAgeDemographics(detections: cocoSsd.DetectedObject[]): 'children' | 'adults' | 'elderly' | 'mixed' {
     if (detections.length === 0) return 'mixed'
 
     // Rough heuristic based on bounding box height

@@ -282,7 +282,7 @@ export class OSCController {
 
   // Apply complete mood recommendation to all software
   async applyMoodRecommendation(moodRecommendation: any): Promise<void> {
-    const promises = []
+    const promises: Promise<void>[] = [] // Explicit typing
     
     if (this.connections.get('qlab')?.connected) {
       promises.push(this.applyMoodToQLab(moodRecommendation))
@@ -348,7 +348,7 @@ export class OSCController {
 
   // Emergency stop all software
   async emergencyStopAll(): Promise<void> {
-    const promises = []
+    const promises: Promise<void>[] = [] // Explicit typing
     
     if (this.connections.get('qlab')?.connected) {
       promises.push(this.sendToQLab(QLAB_COMMANDS.STOP))
