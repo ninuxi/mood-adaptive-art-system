@@ -163,7 +163,8 @@ export function AudioAnalysis({ isActive, onAudioData }: AudioAnalysisProps) {
     // Cleanup
     return () => {
       if (audioEngineRef.current) {
-        if (typeof audioEngineRef.current.cleanup === 'function') {
+        // @ts-ignore
+        if (typeof (audioEngineRef.current as any).cleanup === 'function') {
           // Firefox mock cleanup
           audioEngineRef.current.cleanup()
         }
