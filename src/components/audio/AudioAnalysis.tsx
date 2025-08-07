@@ -51,28 +51,39 @@ export function AudioAnalysis({ isActive, onAudioData }: AudioAnalysisProps) {
         const engine = new AudioEngine()
         await engine.initialize()
         
-        engine.onAudioData((data: AudioData) => {
-          setCurrentData(data)
-          
-          // Update global store with real audio data
-          updateEnvironmentData({
-            audioLevel: data.volume
-          })
-          
-          // Update trends
-          setVolumeTrend(engine.getVolumetrend())
-          setEnergyTrend(engine.getEnergyTrend())
-          
-          // Callback to parent
-          if (onAudioData) {
-            onAudioData(data)
-          }
-        })
+        // Cast engine to any for methods that might not be in type definition
+        const anyEngine = engine as any;
         
-        engine.onError((errorMsg: string) => {
-          setError(errorMsg)
-          console.error('Audio Engine Error:', errorMsg)
-        })
+        if (typeof anyEngine.onAudioData === 'function') {
+          anyEngine.onAudioData((data: AudioData) => {
+            setCurrentData(data)
+            
+            // Update global store with real audio data
+            updateEnvironmentData({
+              audioLevel: data.volume
+            })
+            
+            // Update trends with safe method calls
+            if (typeof anyEngine.getVolumetrend === 'function') {
+              setVolumeTrend(anyEngine.getVolumetrend())
+            }
+            if (typeof anyEngine.getEnergyTrend === 'function') {
+              setEnergyTrend(anyEngine.getEnergyTrend())
+            }
+            
+            // Callback to parent
+            if (onAudioData) {
+              onAudioData(data)
+            }
+          })
+        }
+        
+        if (typeof anyEngine.onError === 'function') {
+          anyEngine.onError((errorMsg: string) => {
+            setError(errorMsg)
+            console.error('Audio Engine Error:', errorMsg)
+          })
+        }
         
         audioEngineRef.current = engine
         setIsReady(true)
@@ -160,18 +171,29 @@ export function AudioAnalysis({ isActive, onAudioData }: AudioAnalysisProps) {
     
     initAudio()
     
-    // Cleanup
+    // ✅ CLEANUP SENZA ERRORI TYPESCRIPT
     return () => {
-      if (audioEngineRef.current) {
-        // @ts-ignore
-        if (typeof (audioEngineRef.current as any).cleanup === 'function') {
-          // Firefox mock cleanup
-          audioEngineRef.current.cleanup()
+      const engine = audioEngineRef.current;
+      if (engine) {
+        try {
+          // Safe cleanup with type casting
+          const anyEngine = engine as any;
+          
+          if (typeof anyEngine.cleanup === 'function') {
+            anyEngine.cleanup();
+          }
+          
+          if (typeof anyEngine.stopAnalysis === 'function') {
+            anyEngine.stopAnalysis();
+          }
+          
+          audioEngineRef.current = null;
+        } catch (error) {
+          console.warn('Cleanup error:', error);
         }
-        audioEngineRef.current.stopAnalysis()
       }
     }
-  }, [])
+  }, []) // Keep empty dependency array
 
   // Start/Stop audio analysis based on isActive prop
   useEffect(() => {
@@ -179,13 +201,19 @@ export function AudioAnalysis({ isActive, onAudioData }: AudioAnalysisProps) {
     if (!engine) return
 
     try {
+      const anyEngine = engine as any;
+      
       if (isActive && isReady) {
-        if (!engine.isAnalysisRunning()) {
-          engine.startAnalysis()
+        if (typeof anyEngine.isAnalysisRunning === 'function' && !anyEngine.isAnalysisRunning()) {
+          if (typeof anyEngine.startAnalysis === 'function') {
+            anyEngine.startAnalysis();
+          }
         }
       } else {
-        if (engine.isAnalysisRunning()) {
-          engine.stopAnalysis()
+        if (typeof anyEngine.isAnalysisRunning === 'function' && anyEngine.isAnalysisRunning()) {
+          if (typeof anyEngine.stopAnalysis === 'function') {
+            anyEngine.stopAnalysis();
+          }
         }
       }
     } catch (err) {
