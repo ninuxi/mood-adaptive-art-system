@@ -310,6 +310,12 @@ interface MoodStore {
   applyCurrentMoodToSoftware: () => Promise<void>
   sendOSCCommand: (software: string, command: string, args: any[]) => Promise<void>
   
+  // Individual software application functions
+  applyMoodToQLab: (config: any) => Promise<void>
+  applyMoodToResolume: (config: any) => Promise<void>
+  applyMoodToChamsys: (config: any) => Promise<void>
+  applyMoodToGrandMA3: (config: any) => Promise<void>
+  
   // Simulation controls
   simulationMode: boolean
   setSimulationMode: (enabled: boolean) => void
