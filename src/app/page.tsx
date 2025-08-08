@@ -1,3 +1,4 @@
+// src/app/page.tsx - FIXED LAYOUT per evitare sovrapposizioni
 'use client'
 
 import { useState } from 'react'
@@ -11,7 +12,10 @@ import {
   Pause,
   Power,
   AlertTriangle,
-  Sliders
+  Sliders,
+  Users,
+  Clock,
+  TrendingUp
 } from 'lucide-react'
 
 import { SoftwareStatusPanel } from '@/components/dashboard/SoftwareStatusPanel'
@@ -23,6 +27,34 @@ import { CameraVision } from '@/components/vision/CameraVision'
 import { AudioAnalysis } from '@/components/audio/AudioAnalysis'
 
 type TabType = 'overview' | 'vision' | 'mood' | 'control' | 'analytics'
+
+interface StatCardProps {
+  title: string
+  value: string | number
+  unit?: string
+  icon: React.ReactNode
+  color: string
+  change?: number
+}
+
+const StatCard = ({ title, value, unit = '', icon, color, change }: StatCardProps) => (
+  <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg p-4">
+    <div className="flex items-center justify-between mb-2">
+      <div className={`p-2 rounded-lg bg-${color}-500/20`}>
+        {icon}
+      </div>
+      {change && (
+        <div className={`text-xs px-2 py-1 rounded-full ${
+          change > 0 ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+        }`}>
+          {change > 0 ? '+' : ''}{change}%
+        </div>
+      )}
+    </div>
+    <div className="text-2xl font-bold text-white">{value}{unit}</div>
+    <div className="text-sm text-gray-400">{title}</div>
+  </div>
+)
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<TabType>('overview')
@@ -114,100 +146,186 @@ export default function Dashboard() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
+          className="space-y-8"
         >
           {activeTab === 'overview' && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* Software Status */}
-              <div className="lg:col-span-1">
-                <SoftwareStatusPanel />
+            <>
+              {/* Top Row - Quick Stats */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <StatCard
+                  title="Current Mood"
+                  value="Contemplative"
+                  icon={<Brain className={`w-5 h-5 text-purple-400`} />}
+                  color="purple"
+                  change={5}
+                />
+                <StatCard
+                  title="Active Visitors"
+                  value="12"
+                  icon={<Users className={`w-5 h-5 text-blue-400`} />}
+                  color="blue"
+                  change={8}
+                />
+                <StatCard
+                  title="Avg Stay Time"
+                  value="18.5"
+                  unit="min"
+                  icon={<Clock className={`w-5 h-5 text-green-400`} />}
+                  color="green"
+                  change={12}
+                />
+                <StatCard
+                  title="Engagement"
+                  value="78"
+                  unit="%"
+                  icon={<TrendingUp className={`w-5 h-5 text-yellow-400`} />}
+                  color="yellow"
+                  change={-3}
+                />
               </div>
-              
-              {/* Mood Visualizer */}
-              <div className="lg:col-span-2">
-                <MoodVisualizer systemActive={systemActive} />
-              </div>
-              
-              {/* Quick Stats */}
-              <div className="lg:col-span-3">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <StatCard
-                    title="Current Mood"
-                    value="Contemplative"
-                    icon={<Brain className="w-5 h-5" />}
-                    color="purple"
-                  />
-                  <StatCard
-                    title="Audience Size"
-                    value="12 people"
-                    icon={<Activity className="w-5 h-5" />}
-                    color="blue"
-                  />
-                  <StatCard
-                    title="Energy Level"
-                    value="Medium"
-                    icon={<BarChart3 className="w-5 h-5" />}
-                    color="green"
-                  />
-                  <StatCard
-                    title="System Uptime"
-                    value="2h 34m"
-                    icon={<Power className="w-5 h-5" />}
-                    color="yellow"
-                  />
+
+              {/* Main Content Row */}
+              <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                {/* Software Status - Left Column */}
+                <div className="xl:col-span-1">
+                  <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6">
+                    <h2 className="text-lg font-bold text-white mb-6">Software Connections</h2>
+                    <SoftwareStatusPanel />
+                  </div>
+                </div>
+                
+                {/* Mood Analysis - Center/Right Columns */}
+                <div className="xl:col-span-2">
+                  <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6">
+                    <div className="flex items-center justify-between mb-6">
+                      <h2 className="text-lg font-bold text-white">Mood Analysis</h2>
+                      <div className="flex items-center space-x-2">
+                        <div className={`w-2 h-2 rounded-full ${systemActive ? 'bg-green-500' : 'bg-gray-500'}`} />
+                        <span className="text-sm text-gray-400">
+                          {systemActive ? 'Simulation Mode' : 'Idle'}
+                        </span>
+                      </div>
+                    </div>
+                    <MoodVisualizer systemActive={systemActive} />
+                  </div>
                 </div>
               </div>
-            </div>
+
+              {/* Environment Data Row */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Environment Metrics */}
+                <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6">
+                  <h3 className="text-lg font-bold text-white mb-4">Environment Data</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-white/5 rounded-lg p-4 text-center">
+                      <div className="flex items-center justify-center mb-2">
+                        <Users className="w-5 h-5 text-blue-400" />
+                      </div>
+                      <div className="text-2xl font-bold text-white">12</div>
+                      <div className="text-sm text-gray-400">People Present</div>
+                    </div>
+                    <div className="bg-white/5 rounded-lg p-4 text-center">
+                      <div className="flex items-center justify-center mb-2">
+                        <Activity className="w-5 h-5 text-green-400" />
+                      </div>
+                      <div className="text-2xl font-bold text-white">40%</div>
+                      <div className="text-sm text-gray-400">Movement</div>
+                    </div>
+                    <div className="bg-white/5 rounded-lg p-4 text-center">
+                      <div className="flex items-center justify-center mb-2">
+                        <span className="text-yellow-400">🔊</span>
+                      </div>
+                      <div className="text-2xl font-bold text-white">25</div>
+                      <div className="text-sm text-gray-400">Audio Level (dB)</div>
+                    </div>
+                    <div className="bg-white/5 rounded-lg p-4 text-center">
+                      <div className="flex items-center justify-center mb-2">
+                        <span className="text-purple-400">👁️</span>
+                      </div>
+                      <div className="text-2xl font-bold text-white">70</div>
+                      <div className="text-sm text-gray-400">Ambient Light (lux)</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* System Health */}
+                <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6">
+                  <h3 className="text-lg font-bold text-white mb-4">System Health</h3>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-300">AI Processing</span>
+                      <div className="flex items-center space-x-2">
+                        <div className="w-20 h-2 bg-gray-700 rounded-full overflow-hidden">
+                          <div className="w-3/4 h-full bg-green-500 rounded-full"></div>
+                        </div>
+                        <span className="text-sm text-green-400">75%</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-300">Network Latency</span>
+                      <div className="flex items-center space-x-2">
+                        <div className="w-20 h-2 bg-gray-700 rounded-full overflow-hidden">
+                          <div className="w-1/4 h-full bg-green-500 rounded-full"></div>
+                        </div>
+                        <span className="text-sm text-green-400">45ms</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-300">Memory Usage</span>
+                      <div className="flex items-center space-x-2">
+                        <div className="w-20 h-2 bg-gray-700 rounded-full overflow-hidden">
+                          <div className="w-1/2 h-full bg-yellow-500 rounded-full"></div>
+                        </div>
+                        <span className="text-sm text-yellow-400">52%</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-300">OSC Connections</span>
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm text-white">0/5</span>
+                        <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
           )}
 
           {activeTab === 'vision' && (
-            <div className="space-y-8">
-              <div>
-                <h2 className="text-2xl font-bold text-white mb-2">AI Sensor Systems</h2>
-                <p className="text-gray-400">Real-time computer vision and audio analysis for mood detection</p>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6">
+                <h2 className="text-lg font-bold text-white mb-6">Computer Vision</h2>
+                <CameraVision />
               </div>
-              
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                <CameraVision isActive={systemActive} />
-                <AudioAnalysis isActive={systemActive} />
+              <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6">
+                <h2 className="text-lg font-bold text-white mb-6">Audio Analysis</h2>
+                <AudioAnalysis />
               </div>
             </div>
           )}
 
-          {activeTab === 'mood' && <MoodSimulator />}
-          {activeTab === 'control' && <LiveControl systemActive={systemActive} />}
-          {activeTab === 'analytics' && <AnalyticsPanel />}
+          {activeTab === 'mood' && (
+            <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6">
+              <h2 className="text-lg font-bold text-white mb-6">Mood Designer</h2>
+              <MoodSimulator />
+            </div>
+          )}
+
+          {activeTab === 'control' && (
+            <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6">
+              <LiveControl />
+            </div>
+          )}
+
+          {activeTab === 'analytics' && (
+            <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6">
+              <h2 className="text-lg font-bold text-white mb-6">Analytics & Insights</h2>
+              <AnalyticsPanel />
+            </div>
+          )}
         </motion.div>
       </main>
-    </div>
-  )
-}
-
-interface StatCardProps {
-  title: string
-  value: string
-  icon: React.ReactNode
-  color: 'purple' | 'blue' | 'green' | 'yellow'
-}
-
-function StatCard({ title, value, icon, color }: StatCardProps) {
-  const colorClasses = {
-    purple: 'from-purple-500 to-purple-600',
-    blue: 'from-blue-500 to-blue-600',
-    green: 'from-green-500 to-green-600',
-    yellow: 'from-yellow-500 to-yellow-600'
-  }
-
-  return (
-    <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm text-gray-400 mb-1">{title}</p>
-          <p className="text-2xl font-bold text-white">{value}</p>
-        </div>
-        <div className={`w-12 h-12 bg-gradient-to-r ${colorClasses[color]} rounded-lg flex items-center justify-center`}>
-          {icon}
-        </div>
-      </div>
     </div>
   )
 }

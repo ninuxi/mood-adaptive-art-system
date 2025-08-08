@@ -1,0 +1,965 @@
+// Real OSC Protocol controller for professional software integration
+import osc from 'osc'
+import WebSocket from 'ws'
+
+export interface OSCMessage {
+  address: string
+  args: (number | string | boolean)[]
+}
+
+export interface SoftwareConnection {
+  id: string
+  name: string
+  ip: string
+  port: number
+  protocol: 'OSC' | 'MIDI' | 'ArtNet'
+  connected: boolean
+  lastPing: number
+  oscPort?: osc.UDPPort | osc.WebSocketPort
+  websocket?: WebSocket
+}
+
+// QLab OSC Commands (Updated with more comprehensive commands)
+export const QLAB_COMMANDS = {
+  // Playback control
+  GO: '/go',
+  STOP: '/stop',
+  PAUSE: '/pause',
+  RESET: '/reset',
+  
+  // Cue control
+  CUE_GO: (cueId: string) => `/cue/${cueId}/go`,
+  CUE_STOP: (cueId: string) => `/cue/${cueId}/stop`,
+  CUE_LOAD: (cueId: string) => `/cue/${cueId}/load`,
+  CUE_PAUSE: (cueId: string) => `/cue/${cueId}/pause`,
+  
+  // Parameter control
+  CUE_VOLUME: (cueId: string) => `/cue/${cueId}/sliderLevel`,
+  CUE_RATE: (cueId: string) => `/cue/${cueId}/rate`,
+  CUE_FADE: (cueId: string) => `/cue/${cueId}/fadeTime`,
+  CUE_OPACITY: (cueId: string) => `/cue/${cueId}/opacity`,
+  
+  // Workspace & Info
+  WORKSPACE: '/workspace',
+  WORKSPACE_CONNECT: '/connect',
+  WORKSPACE_DISCONNECT: '/disconnect',
+  
+  // Status queries
+  CUE_NAME: (cueId: string) => `/cue/${cueId}/displayName`,
+  CUE_TYPE: (cueId: string) => `/cue/${cueId}/type`,
+  RUNNINGCUES: '/runningCues'
+}
+
+// Resolume OSC Commands (Expanded)
+export const RESOLUME_COMMANDS = {
+  // Layer control
+  LAYER_OPACITY: (layer: number) => `/layer${layer}/video/opacity/values`,
+  LAYER_CLIP: (layer: number, clip: number) => `/layer${layer}/clip${clip}/connect`,
+  LAYER_CLEAR: (layer: number) => `/layer${layer}/clear`,
+  LAYER_BYPASS: (layer: number) => `/layer${layer}/bypassed`,
+  
+  // Effects
+  EFFECT_PARAM: (layer: number, effect: number, param: number) => 
+    `/layer${layer}/video/effect${effect}/param${param}/values`,
+  EFFECT_BYPASS: (layer: number, effect: number) => 
+    `/layer${layer}/video/effect${effect}/bypassed`,
+  EFFECT_MIX: (layer: number, effect: number) => 
+    `/layer${layer}/video/effect${effect}/video/mixamount/values`,
+    
+  // Composition
+  COMP_BPM: '/composition/tempocontroller/tempo',
+  COMP_CROSSFADER: '/composition/crossfader',
+  COMP_MASTER_OPACITY: '/composition/video/opacity/values',
+  
+  // Transport
+  TRANSPORT_PLAY: '/composition/transportcontroller/play',
+  TRANSPORT_STOP: '/composition/transportcontroller/stop',
+  TRANSPORT_RESYNC: '/composition/transportcontroller/resync',
+  
+  // Columns (for deck selection)
+  COLUMN_SELECT: (column: number) => `/composition/columns/column${column}/select`,
+  COLUMN_CONNECT: (column: number, clip: number) => `/composition/columns/column${column}/clips/clip${clip}/connect`
+}
+
+// TouchOSC specific commands
+export const TOUCHOSC_COMMANDS = {
+  // Faders
+  FADER: (page: number, fader: number) => `/${page}/fader${fader}`,
+  
+  // Buttons
+  PUSH: (page: number, button: number) => `/${page}/push${button}`,
+  TOGGLE: (page: number, toggle: number) => `/${page}/toggle${toggle}`,
+  
+  // XY Pads
+  XY: (page: number, xy: number, axis: 'x' | 'y') => `/${page}/xy${xy}/${axis}`,
+  
+  // Labels
+  LABEL: (page: number, element: number) => `/${page}/label${element}`,
+  
+  // LEDs
+  LED: (page: number, led: number) => `/${page}/led${led}`
+}
+
+// Chamsys MagicQ OSC Commands
+export const CHAMSYS_COMMANDS = {
+  // Playback control
+  PLAYBACK_GO: (pb: number) => `/pb/${pb}/go`,
+  PLAYBACK_STOP: (pb: number) => `/pb/${pb}/stop`,
+  PLAYBACK_PAUSE: (pb: number) => `/pb/${pb}/pause`,
+  PLAYBACK_LEVEL: (pb: number) => `/pb/${pb}/level`,
+  
+  // Cue control
+  CUE_GO: (pb: number, cue: number) => `/pb/${pb}/cue/${cue}/go`,
+  CUE_STORE: (pb: number, cue: number) => `/pb/${pb}/cue/${cue}/store`,
+  
+  // Parameters
+  INTENSITY: (head: number) => `/head/${head}/intensity`,
+  COLOR_RGB: (head: number, component: 'r' | 'g' | 'b') => `/head/${head}/${component}`,
+  POSITION: (head: number, axis: 'pan' | 'tilt') => `/head/${head}/${axis}`,
+  
+  // Pages
+  PAGE_CHANGE: '/page/change',
+  PAGE_UP: '/page/up',
+  PAGE_DOWN: '/page/down'
+}
+
+// GrandMA3 OSC Commands
+export const GRANDMA3_COMMANDS = {
+  // Main controls
+  GO: '/gma3/cmd',
+  CLEAR: '/gma3/cmd',
+  
+  // Executors
+  EXEC_GO: (exec: number) => `/gma3/exec/${exec}/go`,
+  EXEC_STOP: (exec: number) => `/gma3/exec/${exec}/stop`,
+  EXEC_PAUSE: (exec: number) => `/gma3/exec/${exec}/pause`,
+  EXEC_FADER: (exec: number) => `/gma3/exec/${exec}/fader`,
+  
+  // Key commands (send as strings to /gma3/cmd)
+  KEY_GO: 'Go',
+  KEY_PAUSE: 'Pause',
+  KEY_GOTO: (cue: number) => `Goto Cue ${cue}`,
+  KEY_STORE: (cue: number) => `Store Cue ${cue}`,
+  KEY_UPDATE: 'Update',
+  KEY_CLEAR: 'Clear',
+  
+  // Pages
+  PAGE: (page: number) => `/gma3/page/${page}`,
+  
+  // Fixtures and parameters
+  FIXTURE_DIMMER: (fixture: number) => `/gma3/fixture/${fixture}/dimmer`,
+  FIXTURE_POSITION: (fixture: number, axis: 'pan' | 'tilt') => `/gma3/fixture/${fixture}/${axis}`
+}
+
+// Professional Network Discovery
+interface DiscoveredDevice {
+  id: string
+  name: string
+  ip: string
+  port: number
+  protocol: string
+  software: string
+  version?: string
+  capabilities?: string[]
+}
+
+export class OSCController {
+  private connections: Map<string, SoftwareConnection> = new Map()
+  private mockMode: boolean = false // Real mode by default now
+  private discoveryEnabled: boolean = true
+  private discoveredDevices: Map<string, DiscoveredDevice> = new Map()
+  
+  // Connection callbacks
+  private onConnectionChange?: (id: string, connected: boolean) => void
+  private onMessage?: (software: string, message: string) => void
+  private onDeviceDiscovered?: (device: DiscoveredDevice) => void
+  
+  // Network discovery
+  private discoveryInterval?: NodeJS.Timeout
+
+  constructor() {
+    this.initializeConnections()
+    this.startNetworkDiscovery()
+  }
+
+  private initializeConnections() {
+    const defaultConnections: SoftwareConnection[] = [
+      {
+        id: 'qlab',
+        name: 'QLab',
+        ip: '192.168.1.10',
+        port: 53000,
+        protocol: 'OSC',
+        connected: false,
+        lastPing: 0
+      },
+      {
+        id: 'resolume',
+        name: 'Resolume Arena',
+        ip: '192.168.1.11', 
+        port: 7000,
+        protocol: 'OSC',
+        connected: false,
+        lastPing: 0
+      },
+      {
+        id: 'touchosc',
+        name: 'TouchOSC',
+        ip: '192.168.1.13',
+        port: 9000,
+        protocol: 'OSC',
+        connected: false,
+        lastPing: 0
+      },
+      {
+        id: 'chamsys',
+        name: 'Chamsys MagicQ',
+        ip: '192.168.1.12',
+        port: 6454,
+        protocol: 'OSC',
+        connected: false,
+        lastPing: 0
+      },
+      {
+        id: 'grandma3',
+        name: 'GrandMA3',
+        ip: '192.168.1.14',
+        port: 8000,
+        protocol: 'OSC',
+        connected: false,
+        lastPing: 0
+      }
+    ]
+
+    defaultConnections.forEach(conn => {
+      this.connections.set(conn.id, conn)
+    })
+  }
+
+  // Network Discovery - Automatically find software on network
+  private async startNetworkDiscovery() {
+    if (!this.discoveryEnabled) return
+
+    console.log('🔍 Starting network discovery for OSC devices...')
+    
+    // Clear previous discoveries
+    this.discoveredDevices.clear()
+    
+    // Discovery interval - scan every 30 seconds
+    this.discoveryInterval = setInterval(async () => {
+      await this.scanNetwork()
+    }, 30000)
+    
+    // Initial scan
+    await this.scanNetwork()
+  }
+
+  private async scanNetwork() {
+    const commonPorts = [
+      { port: 53000, software: 'QLab', protocol: 'OSC' },
+      { port: 7000, software: 'Resolume', protocol: 'OSC' },
+      { port: 7001, software: 'Resolume', protocol: 'OSC' },
+      { port: 9000, software: 'TouchOSC', protocol: 'OSC' },
+      { port: 8000, software: 'TouchOSC', protocol: 'OSC' },
+      { port: 6454, software: 'Chamsys', protocol: 'ArtNet' },
+      { port: 8000, software: 'GrandMA3', protocol: 'OSC' },
+      { port: 7878, software: 'GrandMA3', protocol: 'OSC' }
+    ]
+
+    // Scan local network (simplified - in production would use proper network scanning)
+    for (let i = 1; i <= 254; i++) {
+      const ip = `192.168.1.${i}`
+      
+      for (const portConfig of commonPorts) {
+        try {
+          const isReachable = await this.testConnection(ip, portConfig.port, 1000) // 1 second timeout
+          
+          if (isReachable) {
+            const deviceId = `${ip}:${portConfig.port}`
+            const device: DiscoveredDevice = {
+              id: deviceId,
+              name: `${portConfig.software} (${ip})`,
+              ip,
+              port: portConfig.port,
+              protocol: portConfig.protocol,
+              software: portConfig.software
+            }
+            
+            this.discoveredDevices.set(deviceId, device)
+            
+            if (this.onDeviceDiscovered) {
+              this.onDeviceDiscovered(device)
+            }
+            
+            console.log(`✅ Discovered: ${device.name} at ${ip}:${portConfig.port}`)
+          }
+        } catch (error) {
+          // Silent fail for discovery
+        }
+      }
+    }
+  }
+
+  private async testConnection(ip: string, port: number, timeout: number): Promise<boolean> {
+    return new Promise((resolve) => {
+      const socket = new (require('net')).Socket()
+      
+      const timer = setTimeout(() => {
+        socket.destroy()
+        resolve(false)
+      }, timeout)
+      
+      socket.connect(port, ip, () => {
+        clearTimeout(timer)
+        socket.destroy()
+        resolve(true)
+      })
+      
+      socket.on('error', () => {
+        clearTimeout(timer)
+        resolve(false)
+      })
+    })
+  }
+
+  // Real OSC Connection Management
+  async connect(softwareId: string): Promise<boolean> {
+    const connection = this.connections.get(softwareId)
+    if (!connection) {
+      throw new Error(`Unknown software: ${softwareId}`)
+    }
+
+    if (this.mockMode) {
+      // Keep mock functionality for testing
+      connection.connected = true
+      connection.lastPing = Date.now()
+      
+      if (this.onConnectionChange) {
+        this.onConnectionChange(softwareId, true)
+      }
+      
+      console.log(`[MOCK] Connected to ${connection.name} at ${connection.ip}:${connection.port}`)
+      return true
+    }
+
+    try {
+      // Create real OSC connection
+      if (connection.protocol === 'OSC') {
+        // Use UDP for most OSC connections
+        const oscPort = new osc.UDPPort({
+          localAddress: "0.0.0.0",
+          localPort: 0, // Let system assign
+          remoteAddress: connection.ip,
+          remotePort: connection.port,
+          metadata: true
+        })
+
+        // Connection event handlers
+        oscPort.on("ready", () => {
+          console.log(`✅ OSC UDP connection established with ${connection.name}`)
+          connection.connected = true
+          connection.lastPing = Date.now()
+          
+          if (this.onConnectionChange) {
+            this.onConnectionChange(softwareId, true)
+          }
+        })
+
+        oscPort.on("error", (error: Error) => {
+          console.error(`❌ OSC connection error with ${connection.name}:`, error.message)
+          connection.connected = false
+          
+          if (this.onConnectionChange) {
+            this.onConnectionChange(softwareId, false)
+          }
+        })
+
+        oscPort.on("message", (oscMessage: any) => {
+          console.log(`📨 Received from ${connection.name}:`, oscMessage.address, oscMessage.args)
+          
+          if (this.onMessage) {
+            this.onMessage(connection.name, `${oscMessage.address} ${oscMessage.args.join(' ')}`)
+          }
+        })
+
+        // Store the port reference
+        connection.oscPort = oscPort
+
+        // Open the connection
+        oscPort.open()
+
+        // Test connection with a ping
+        setTimeout(() => {
+          this.pingConnection(softwareId)
+        }, 2000)
+
+        return true
+      }
+
+      return false
+    } catch (error) {
+      console.error(`Failed to connect to ${connection.name}:`, error)
+      connection.connected = false
+      return false
+    }
+  }
+
+  async disconnect(softwareId: string): Promise<void> {
+    const connection = this.connections.get(softwareId)
+    if (!connection) return
+
+    try {
+      if (connection.oscPort) {
+        connection.oscPort.close()
+        connection.oscPort = undefined
+      }
+
+      if (connection.websocket) {
+        connection.websocket.close()
+        connection.websocket = undefined
+      }
+
+      connection.connected = false
+      connection.lastPing = 0
+
+      if (this.onConnectionChange) {
+        this.onConnectionChange(softwareId, false)
+      }
+
+      console.log(`🔌 Disconnected from ${connection.name}`)
+    } catch (error) {
+      console.error(`Error disconnecting from ${connection.name}:`, error)
+    }
+  }
+
+  // Ping connections to maintain health
+  private async pingConnection(softwareId: string): Promise<void> {
+    const connection = this.connections.get(softwareId)
+    if (!connection?.connected || !connection.oscPort) return
+
+    try {
+      // Software-specific ping commands
+      switch (softwareId) {
+        case 'qlab':
+          await this.sendOSC(connection, { address: QLAB_COMMANDS.WORKSPACE, args: [] })
+          break
+        case 'resolume':
+          await this.sendOSC(connection, { address: '/composition', args: [] })
+          break
+        case 'touchosc':
+          await this.sendOSC(connection, { address: '/ping', args: [1] })
+          break
+        case 'chamsys':
+          await this.sendOSC(connection, { address: '/status', args: [] })
+          break
+        case 'grandma3':
+          await this.sendOSC(connection, { address: '/gma3/status', args: [] })
+          break
+      }
+
+      connection.lastPing = Date.now()
+    } catch (error) {
+      console.error(`Ping failed for ${connection.name}:`, error)
+      connection.connected = false
+      
+      if (this.onConnectionChange) {
+        this.onConnectionChange(softwareId, false)
+      }
+    }
+  }
+
+  // Core OSC message sending
+  private async sendOSC(connection: SoftwareConnection, message: OSCMessage): Promise<void> {
+    if (!connection.oscPort || !connection.connected) {
+      throw new Error(`${connection.name} not connected`)
+    }
+
+    try {
+      connection.oscPort.send(message)
+      
+      if (this.onMessage) {
+        this.onMessage(connection.name, `SENT: ${message.address} ${message.args.join(' ')}`)
+      }
+      
+      console.log(`📤 Sent to ${connection.name}:`, message.address, message.args)
+    } catch (error) {
+      console.error(`Failed to send OSC to ${connection.name}:`, error)
+      throw error
+    }
+  }
+
+  // QLab Commands
+  async sendToQLab(command: string, args: (number | string)[] = []): Promise<void> {
+    const connection = this.connections.get('qlab')
+    if (!connection?.connected) {
+      throw new Error('QLab not connected')
+    }
+
+    if (this.mockMode) {
+      console.log(`[QLAB MOCK] ${command}`, args)
+      if (this.onMessage) {
+        this.onMessage('qlab', `${command} ${args.join(' ')}`)
+      }
+      return
+    }
+
+    await this.sendOSC(connection, { address: command, args })
+  }
+
+  // Resolume Commands
+  async sendToResolume(command: string, args: (number | string)[] = []): Promise<void> {
+    const connection = this.connections.get('resolume')
+    if (!connection?.connected) {
+      throw new Error('Resolume not connected')
+    }
+
+    if (this.mockMode) {
+      console.log(`[RESOLUME MOCK] ${command}`, args)
+      if (this.onMessage) {
+        this.onMessage('resolume', `${command} ${args.join(' ')}`)
+      }
+      return
+    }
+
+    await this.sendOSC(connection, { address: command, args })
+  }
+
+  // TouchOSC Commands
+  async sendToTouchOSC(command: string, args: (number | string)[] = []): Promise<void> {
+    const connection = this.connections.get('touchosc')
+    if (!connection?.connected) {
+      throw new Error('TouchOSC not connected')
+    }
+
+    if (this.mockMode) {
+      console.log(`[TOUCHOSC MOCK] ${command}`, args)
+      if (this.onMessage) {
+        this.onMessage('touchosc', `${command} ${args.join(' ')}`)
+      }
+      return
+    }
+
+    await this.sendOSC(connection, { address: command, args })
+  }
+
+  // Chamsys Commands
+  async sendToChamsys(command: string, args: (number | string)[] = []): Promise<void> {
+    const connection = this.connections.get('chamsys')
+    if (!connection?.connected) {
+      throw new Error('Chamsys not connected')
+    }
+
+    if (this.mockMode) {
+      console.log(`[CHAMSYS MOCK] ${command}`, args)
+      if (this.onMessage) {
+        this.onMessage('chamsys', `${command} ${args.join(' ')}`)
+      }
+      return
+    }
+
+    await this.sendOSC(connection, { address: command, args })
+  }
+
+  // GrandMA3 Commands
+  async sendToGrandMA3(command: string, args: (number | string)[] = []): Promise<void> {
+    const connection = this.connections.get('grandma3')
+    if (!connection?.connected) {
+      throw new Error('GrandMA3 not connected')
+    }
+
+    if (this.mockMode) {
+      console.log(`[GRANDMA3 MOCK] ${command}`, args)
+      if (this.onMessage) {
+        this.onMessage('grandma3', `${command} ${args.join(' ')}`)
+      }
+      return
+    }
+
+    await this.sendOSC(connection, { address: command, args })
+  }
+
+  // High-level Mood Application Functions
+  async applyMoodToQLab(moodRecommendation: any): Promise<void> {
+    const { qlab } = moodRecommendation.softwareRecommendations
+    
+    try {
+      // Set volume for current cue
+      await this.sendToQLab(QLAB_COMMANDS.CUE_VOLUME('current'), [qlab.volume])
+      
+      // Load appropriate cue if specified
+      if (qlab.cue) {
+        await this.sendToQLab(QLAB_COMMANDS.CUE_LOAD(qlab.cue))
+      }
+      
+      // Set fade time
+      await this.sendToQLab(QLAB_COMMANDS.CUE_FADE('current'), [qlab.fadeTime])
+      
+      // Control playback based on mood
+      if (qlab.playback === 'go') {
+        await this.sendToQLab(QLAB_COMMANDS.GO)
+      } else if (qlab.playback === 'pause') {
+        await this.sendToQLab(QLAB_COMMANDS.PAUSE)
+      }
+      
+    } catch (error) {
+      console.error('Failed to apply mood to QLab:', error)
+    }
+  }
+
+  async applyMoodToResolume(moodRecommendation: any): Promise<void> {
+    const { resolume } = moodRecommendation.softwareRecommendations
+    
+    try {
+      // Set layer opacity
+      await this.sendToResolume(RESOLUME_COMMANDS.LAYER_OPACITY(1), [resolume.opacity])
+      
+      // Trigger clip if specified
+      if (resolume.clip) {
+        await this.sendToResolume(RESOLUME_COMMANDS.LAYER_CLIP(1, resolume.clip), [1])
+      }
+      
+      // Control BPM/speed
+      await this.sendToResolume(RESOLUME_COMMANDS.COMP_BPM, [120 * resolume.speed])
+      
+      // Control crossfader
+      if (resolume.crossfader !== undefined) {
+        await this.sendToResolume(RESOLUME_COMMANDS.COMP_CROSSFADER, [resolume.crossfader])
+      }
+      
+    } catch (error) {
+      console.error('Failed to apply mood to Resolume:', error)
+    }
+  }
+
+  async applyMoodToChamsys(moodRecommendation: any): Promise<void> {
+    const { lighting } = moodRecommendation.softwareRecommendations
+    
+    try {
+      // Control playback levels
+      if (lighting.playback) {
+        await this.sendToChamsys(CHAMSYS_COMMANDS.PLAYBACK_LEVEL(lighting.playback), [lighting.intensity])
+      }
+      
+      // Control individual fixtures
+      if (lighting.fixtures) {
+        for (const fixture of lighting.fixtures) {
+          await this.sendToChamsys(CHAMSYS_COMMANDS.INTENSITY(fixture.id), [fixture.intensity])
+          
+          if (fixture.color) {
+            const color = this.hexToRGB(fixture.color)
+            await this.sendToChamsys(CHAMSYS_COMMANDS.COLOR_RGB(fixture.id, 'r'), [color.r / 255])
+            await this.sendToChamsys(CHAMSYS_COMMANDS.COLOR_RGB(fixture.id, 'g'), [color.g / 255])
+            await this.sendToChamsys(CHAMSYS_COMMANDS.COLOR_RGB(fixture.id, 'b'), [color.b / 255])
+          }
+        }
+      }
+      
+    } catch (error) {
+      console.error('Failed to apply mood to Chamsys:', error)
+    }
+  }
+
+  async applyMoodToGrandMA3(moodRecommendation: any): Promise<void> {
+    const { lighting } = moodRecommendation.softwareRecommendations
+    
+    try {
+      // Execute sequences based on mood
+      if (lighting.sequence) {
+        await this.sendToGrandMA3(GRANDMA3_COMMANDS.EXEC_GO(lighting.sequence))
+      }
+      
+      // Control executor faders
+      if (lighting.executors) {
+        for (const exec of lighting.executors) {
+          await this.sendToGrandMA3(GRANDMA3_COMMANDS.EXEC_FADER(exec.id), [exec.level])
+        }
+      }
+      
+      // Send command strings for complex operations
+      if (lighting.command) {
+        await this.sendToGrandMA3('/gma3/cmd', [lighting.command])
+      }
+      
+    } catch (error) {
+      console.error('Failed to apply mood to GrandMA3:', error)
+    }
+  }
+
+  // Apply complete mood to all connected software
+  async applyMoodRecommendation(moodRecommendation: any): Promise<void> {
+    const promises: Promise<void>[] = []
+    
+    if (this.connections.get('qlab')?.connected) {
+      promises.push(this.applyMoodToQLab(moodRecommendation))
+    }
+    
+    if (this.connections.get('resolume')?.connected) {
+      promises.push(this.applyMoodToResolume(moodRecommendation))
+    }
+    
+    if (this.connections.get('chamsys')?.connected) {
+      promises.push(this.applyMoodToChamsys(moodRecommendation))
+    }
+    
+    if (this.connections.get('grandma3')?.connected) {
+      promises.push(this.applyMoodToGrandMA3(moodRecommendation))
+    }
+
+    try {
+      await Promise.all(promises)
+      console.log(`🎭 Applied ${moodRecommendation.recommendedMood} mood to all connected software`)
+    } catch (error) {
+      console.error('Failed to apply mood to some software:', error)
+    }
+  }
+
+  // Utility functions
+  private hexToRGB(hex: string): { r: number; g: number; b: number } {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+    return result ? {
+      r: parseInt(result[1], 16),
+      g: parseInt(result[2], 16),
+      b: parseInt(result[3], 16)
+    } : { r: 255, g: 255, b: 255 }
+  }
+
+  // Status and monitoring
+  getConnections(): SoftwareConnection[] {
+    return Array.from(this.connections.values())
+  }
+
+  getDiscoveredDevices(): DiscoveredDevice[] {
+    return Array.from(this.discoveredDevices.values())
+  }
+
+  getConnectionStatus(softwareId: string): SoftwareConnection | null {
+    return this.connections.get(softwareId) || null
+  }
+
+  isConnected(softwareId: string): boolean {
+    return this.connections.get(softwareId)?.connected || false
+  }
+
+  // Event handlers
+  onConnectionStatusChange(callback: (id: string, connected: boolean) => void): void {
+    this.onConnectionChange = callback
+  }
+
+  onMessageSent(callback: (software: string, message: string) => void): void {
+    this.onMessage = callback
+  }
+
+  onDeviceDiscovery(callback: (device: DiscoveredDevice) => void): void {
+    this.onDeviceDiscovered = callback
+  }
+
+  // Emergency stop all software
+  async emergencyStopAll(): Promise<void> {
+    const promises: Promise<void>[] = []
+    
+    if (this.connections.get('qlab')?.connected) {
+      promises.push(this.sendToQLab(QLAB_COMMANDS.STOP))
+    }
+    
+    if (this.connections.get('resolume')?.connected) {
+      promises.push(this.sendToResolume(RESOLUME_COMMANDS.TRANSPORT_STOP))
+    }
+    
+    if (this.connections.get('chamsys')?.connected) {
+      promises.push(this.sendToChamsys(CHAMSYS_COMMANDS.PLAYBACK_STOP(1))) // Stop main playback
+    }
+    
+    if (this.connections.get('grandma3')?.connected) {
+      promises.push(this.sendToGrandMA3('/gma3/cmd', ['Off']))
+    }
+
+    try {
+      await Promise.all(promises)
+      console.log('🛑 Emergency stop sent to all connected software')
+    } catch (error) {
+      console.error('Emergency stop failed:', error)
+    }
+  }
+
+  // Development and testing
+  setMockMode(enabled: boolean): void {
+    this.mockMode = enabled
+    console.log(`OSC Mock mode: ${enabled ? 'enabled' : 'disabled'}`)
+  }
+
+  isMockMode(): boolean {
+    return this.mockMode
+  }
+
+  // Cleanup
+  destroy(): void {
+    // Clear discovery interval
+    if (this.discoveryInterval) {
+      clearInterval(this.discoveryInterval)
+      this.discoveryInterval = undefined
+    }
+
+    // Close all connections
+    this.connections.forEach(async (connection, id) => {
+      if (connection.connected) {
+        await this.disconnect(id)
+      }
+    })
+
+    console.log('🧹 OSCController cleanup completed')
+  }
+
+  // Connection health monitoring
+  startHealthMonitoring(intervalMs: number = 30000): void {
+    setInterval(async () => {
+      for (const [id, connection] of this.connections) {
+        if (connection.connected) {
+          // Check if last ping was too long ago
+          const timeSinceLastPing = Date.now() - connection.lastPing
+          
+          if (timeSinceLastPing > 60000) { // 1 minute timeout
+            console.warn(`⚠️ ${connection.name} appears unresponsive, attempting reconnection...`)
+            await this.disconnect(id)
+            setTimeout(() => {
+              this.connect(id)
+            }, 2000)
+          } else {
+            // Send ping
+            this.pingConnection(id)
+          }
+        }
+      }
+    }, intervalMs)
+  }
+
+  // Advanced connection management
+  async connectAll(): Promise<{ success: string[], failed: string[] }> {
+    const results = { success: [] as string[], failed: [] as string[] }
+    
+    for (const [id, connection] of this.connections) {
+      try {
+        const connected = await this.connect(id)
+        if (connected) {
+          results.success.push(connection.name)
+        } else {
+          results.failed.push(connection.name)
+        }
+      } catch (error) {
+        console.error(`Failed to connect to ${connection.name}:`, error)
+        results.failed.push(connection.name)
+      }
+    }
+    
+    console.log(`🔗 Connection results: ${results.success.length} successful, ${results.failed.length} failed`)
+    return results
+  }
+
+  async disconnectAll(): Promise<void> {
+    const promises = Array.from(this.connections.keys()).map(id => this.disconnect(id))
+    await Promise.all(promises)
+    console.log('🔌 All connections disconnected')
+  }
+
+  // Configuration management
+  updateConnectionConfig(softwareId: string, config: Partial<SoftwareConnection>): boolean {
+    const connection = this.connections.get(softwareId)
+    if (!connection) return false
+
+    // Update connection properties
+    Object.assign(connection, config)
+    console.log(`🔧 Updated config for ${connection.name}`)
+    return true
+  }
+
+  addCustomSoftware(config: SoftwareConnection): void {
+    this.connections.set(config.id, { ...config, connected: false, lastPing: 0 })
+    console.log(`➕ Added custom software: ${config.name}`)
+  }
+
+  removeSoftware(softwareId: string): void {
+    const connection = this.connections.get(softwareId)
+    if (connection?.connected) {
+      this.disconnect(softwareId)
+    }
+    this.connections.delete(softwareId)
+    console.log(`➖ Removed software: ${softwareId}`)
+  }
+
+  // Statistics and monitoring
+  getConnectionStats() {
+    const stats = {
+      total: this.connections.size,
+      connected: 0,
+      disconnected: 0,
+      avgPingTime: 0,
+      protocols: new Map<string, number>()
+    }
+
+    for (const connection of this.connections.values()) {
+      if (connection.connected) {
+        stats.connected++
+      } else {
+        stats.disconnected++
+      }
+
+      // Count protocols
+      const currentCount = stats.protocols.get(connection.protocol) || 0
+      stats.protocols.set(connection.protocol, currentCount + 1)
+    }
+
+    return stats
+  }
+
+  // Batch commands for multiple software
+  async sendToMultipleSoftware(
+    softwareIds: string[], 
+    commands: { [key: string]: { command: string, args: (number | string)[] } }
+  ): Promise<void> {
+    const promises: Promise<void>[] = []
+
+    for (const id of softwareIds) {
+      const connection = this.connections.get(id)
+      if (!connection?.connected || !commands[id]) continue
+
+      const { command, args } = commands[id]
+
+      switch (id) {
+        case 'qlab':
+          promises.push(this.sendToQLab(command, args))
+          break
+        case 'resolume':
+          promises.push(this.sendToResolume(command, args))
+          break
+        case 'touchosc':
+          promises.push(this.sendToTouchOSC(command, args))
+          break
+        case 'chamsys':
+          promises.push(this.sendToChamsys(command, args))
+          break
+        case 'grandma3':
+          promises.push(this.sendToGrandMA3(command, args))
+          break
+      }
+    }
+
+    await Promise.all(promises)
+  }
+
+  // Professional logging
+  private log(level: 'info' | 'warn' | 'error', software: string, message: string, data?: any): void {
+    const timestamp = new Date().toISOString()
+    const logEntry = {
+      timestamp,
+      level,
+      software,
+      message,
+      data
+    }
+
+    // In production, this would go to a proper logging service
+    console.log(`[${timestamp}] [${level.toUpperCase()}] [${software}] ${message}`, data ? data : '')
+    
+    // Could emit events for external logging systems
+    // this.emit('log', logEntry)
+  }
+}
