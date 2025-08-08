@@ -296,11 +296,11 @@ export default function Dashboard() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6">
                 <h2 className="text-lg font-bold text-white mb-6">Computer Vision</h2>
-                <CameraVision />
+                <CameraVision isActive={systemActive} />
               </div>
               <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6">
                 <h2 className="text-lg font-bold text-white mb-6">Audio Analysis</h2>
-                <AudioAnalysis />
+                <AudioAnalysis isActive={systemActive} />
               </div>
             </div>
           )}
