@@ -1,4 +1,4 @@
-// src/app/page.tsx - FIXED LAYOUT per evitare sovrapposizioni
+// src/app/page.tsx - DEBUG VERSION
 'use client'
 
 import { useState } from 'react'
@@ -26,7 +26,27 @@ import { MoodVisualizer } from '@/components/mood/MoodVisualizer'
 import { CameraVision } from '@/components/vision/CameraVision'
 import { AudioAnalysis } from '@/components/audio/AudioAnalysis'
 
-type TabType = 'overview' | 'vision' | 'mood' | 'control' | 'analytics'
+// ⭐ TEMPORARY: Simple AI Analytics placeholder
+const TempAIAnalytics = () => {
+  return (
+    <div className="text-center py-16">
+      <Brain className="w-24 h-24 mx-auto text-purple-400 mb-6" />
+      <h3 className="text-2xl font-bold text-white mb-4">AI Analytics Panel</h3>
+      <p className="text-gray-400 mb-8">
+        Advanced AI features will be available here. 
+        This is a temporary placeholder while we resolve import issues.
+      </p>
+      <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 max-w-md mx-auto">
+        <p className="text-blue-400 text-sm">
+          ✅ AI Analytics tab is working<br/>
+          🔧 Full AI features loading...
+        </p>
+      </div>
+    </div>
+  )
+}
+
+type TabType = 'overview' | 'vision' | 'mood' | 'control' | 'ai-analytics' | 'analytics'
 
 interface StatCardProps {
   title: string
@@ -60,11 +80,14 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<TabType>('overview')
   const [systemActive, setSystemActive] = useState(false)
 
+  console.log('Dashboard rendering, activeTab:', activeTab) // ⭐ DEBUG
+
   const tabs = [
     { id: 'overview' as TabType, label: 'Overview', icon: Activity },
     { id: 'vision' as TabType, label: 'AI Sensors', icon: Brain },
     { id: 'mood' as TabType, label: 'Mood Designer', icon: Settings },
     { id: 'control' as TabType, label: 'Live Control', icon: Sliders },
+    { id: 'ai-analytics' as TabType, label: 'AI Analytics', icon: TrendingUp },
     { id: 'analytics' as TabType, label: 'Analytics', icon: BarChart3 }
   ]
 
@@ -123,7 +146,10 @@ export default function Dashboard() {
               return (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
+                  onClick={() => {
+                    console.log('Tab clicked:', tab.id) // ⭐ DEBUG
+                    setActiveTab(tab.id)
+                  }}
                   className={`flex items-center space-x-2 px-4 py-4 text-sm font-medium transition-colors relative ${
                     activeTab === tab.id
                       ? 'text-purple-400 border-b-2 border-purple-400'
@@ -315,6 +341,13 @@ export default function Dashboard() {
           {activeTab === 'control' && (
             <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6">
               <LiveControl />
+            </div>
+          )}
+
+          {/* ⭐ AI ANALYTICS - TEMPORARY PLACEHOLDER */}
+          {activeTab === 'ai-analytics' && (
+            <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6">
+              <TempAIAnalytics />
             </div>
           )}
 

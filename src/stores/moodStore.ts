@@ -1,9 +1,7 @@
-// src/stores/moodStore.ts - UPDATED per Real OSC Integration
+// src/stores/moodStore.ts - INTEGRATED con Advanced AI & Learning
 import { create } from 'zustand'
 import { subscribeWithSelector } from 'zustand/middleware'
-
-// Import the real OSC Controller
-// import { OSCController } from '../lib/protocols/OSCController'
+import { AdvancedMoodAI, ContextData, MoodPrediction, LearningMetrics, ABTestResult } from '@/lib/ai/AdvancedMoodAI'
 
 export interface MoodState {
   name: string
@@ -20,6 +18,13 @@ export interface EnvironmentData {
   audioLevel: number
   lightLevel: number
   temperature: number
+  // ⭐ NEW: Extended environment data
+  conversationalLevel: number
+  musicalContent: number
+  timeOfDay: 'morning' | 'afternoon' | 'evening' | 'night'
+  dayOfWeek: 'weekday' | 'weekend'
+  weather: 'sunny' | 'cloudy' | 'rainy' | 'stormy'
+  specialEvents: string[]
 }
 
 export interface SoftwareConnection {
@@ -33,7 +38,38 @@ export interface SoftwareConnection {
   protocol?: 'OSC' | 'MIDI' | 'ArtNet'
 }
 
-// ⭐ NUOVO: Mood-to-Software mapping configurations
+// ⭐ NEW: AI Prediction State
+export interface AIPredictionState {
+  currentPrediction: MoodPrediction | null
+  predictionHistory: Array<{
+    timestamp: number
+    prediction: MoodPrediction
+    actualOutcome?: {
+      engagement: number
+      duration: number
+      feedback: number
+    }
+  }>
+  confidence: number
+  learningActive: boolean
+  totalExperience: number
+}
+
+// ⭐ NEW: A/B Testing State
+export interface ABTestState {
+  currentTest: {
+    id: string
+    moodA: string
+    moodB: string
+    context: string
+    sessionCount: number
+    isActive: boolean
+  } | null
+  testHistory: ABTestResult[]
+  isTestingEnabled: boolean
+}
+
+// Existing mood mappings (enhanced)
 export interface MoodMappings {
   [moodName: string]: {
     qlab?: {
@@ -77,7 +113,7 @@ export interface MoodMappings {
   }
 }
 
-// ⭐ CONFIGURAZIONE MOOD MAPPINGS - QUI vanno i codici della documentazione!
+// Enhanced mood mappings
 export const MOOD_MAPPINGS: MoodMappings = {
   'Energetic': {
     qlab: {
@@ -93,14 +129,14 @@ export const MOOD_MAPPINGS: MoodMappings = {
       speed: 1.5,
       crossfader: 0.8,
       effects: [
-        { layer: 1, effect: 1, param: 1, value: 0.7 }, // Brightness
-        { layer: 1, effect: 2, param: 1, value: 0.5 }  // Saturation
+        { layer: 1, effect: 1, param: 1, value: 0.7 },
+        { layer: 1, effect: 2, param: 1, value: 0.5 }
       ]
     },
     lighting: {
       playback: 1,
       intensity: 0.9,
-      color: '#FF4444', // Red energy
+      color: '#FF4444',
       transition: 2,
       fixtures: [
         { id: 1, intensity: 0.9, color: '#FF4444' },
@@ -132,14 +168,14 @@ export const MOOD_MAPPINGS: MoodMappings = {
       speed: 0.6,
       crossfader: 0.2,
       effects: [
-        { layer: 1, effect: 3, param: 1, value: 0.3 }, // Blur
-        { layer: 1, effect: 1, param: 1, value: 0.4 }  // Low brightness
+        { layer: 1, effect: 3, param: 1, value: 0.3 },
+        { layer: 1, effect: 1, param: 1, value: 0.4 }
       ]
     },
     lighting: {
       playback: 2,
       intensity: 0.4,
-      color: '#8B5CF6', // Purple contemplative
+      color: '#8B5CF6',
       transition: 8,
       fixtures: [
         { id: 1, intensity: 0.3, color: '#8B5CF6' },
@@ -178,7 +214,7 @@ export const MOOD_MAPPINGS: MoodMappings = {
     lighting: {
       playback: 3,
       intensity: 0.7,
-      color: '#10B981', // Green social
+      color: '#10B981',
       transition: 3,
       fixtures: [
         { id: 1, intensity: 0.6, color: '#10B981' },
@@ -210,14 +246,14 @@ export const MOOD_MAPPINGS: MoodMappings = {
       speed: 0.7,
       crossfader: 0.3,
       effects: [
-        { layer: 1, effect: 3, param: 1, value: 0.8 }, // Heavy blur
-        { layer: 1, effect: 1, param: 1, value: 0.2 }  // Very low brightness
+        { layer: 1, effect: 3, param: 1, value: 0.8 },
+        { layer: 1, effect: 1, param: 1, value: 0.2 }
       ]
     },
     lighting: {
       playback: 4,
       intensity: 0.5,
-      color: '#6366F1', // Deep purple mysterious
+      color: '#6366F1',
       transition: 5,
       fixtures: [
         { id: 1, intensity: 0.4, color: '#6366F1' },
@@ -256,7 +292,7 @@ export const MOOD_MAPPINGS: MoodMappings = {
     lighting: {
       playback: 5,
       intensity: 0.3,
-      color: '#06B6D4', // Soft cyan peaceful
+      color: '#06B6D4',
       transition: 10,
       fixtures: [
         { id: 1, intensity: 0.2, color: '#06B6D4' },
@@ -276,14 +312,14 @@ export const MOOD_MAPPINGS: MoodMappings = {
 }
 
 interface MoodStore {
-  // Current state
+  // ===== EXISTING STATE =====
   systemActive: boolean
   currentMood: MoodState
   environmentData: EnvironmentData
   softwareConnections: SoftwareConnection[]
   
-  // ⭐ NUOVO: OSC Controller integration
-  oscController: any | null // Will be OSCController when imported
+  // OSC Controller integration
+  oscController: any | null
   oscEnabled: boolean
   lastOSCMessage: { software: string, message: string, timestamp: number } | null
   
@@ -296,14 +332,33 @@ interface MoodStore {
     engagementScore: number
   }
   
-  // Actions
+  // Simulation controls
+  simulationMode: boolean
+  emergencyActive: boolean
+
+  // ===== NEW AI STATE =====
+  
+  // Advanced AI Engine
+  advancedAI: AdvancedMoodAI | null
+  aiEnabled: boolean
+  
+  // AI Predictions
+  aiPrediction: AIPredictionState
+  
+  // Learning Metrics
+  learningMetrics: LearningMetrics | null
+  
+  // A/B Testing
+  abTesting: ABTestState
+
+  // ===== EXISTING ACTIONS =====
   setSystemActive: (active: boolean) => void
   updateCurrentMood: (mood: MoodState) => void
   updateEnvironmentData: (data: Partial<EnvironmentData>) => void
   updateSoftwareConnection: (id: string, updates: Partial<SoftwareConnection>) => void
   addMoodToHistory: (mood: string) => void
   
-  // ⭐ NUOVO: OSC Actions
+  // OSC Actions
   initializeOSC: () => Promise<void>
   connectToSoftware: (softwareId: string) => Promise<boolean>
   disconnectFromSoftware: (softwareId: string) => Promise<void>
@@ -316,18 +371,44 @@ interface MoodStore {
   applyMoodToChamsys: (config: any) => Promise<void>
   applyMoodToGrandMA3: (config: any) => Promise<void>
   
-  // Simulation controls
-  simulationMode: boolean
   setSimulationMode: (enabled: boolean) => void
-  
-  // Emergency controls
   emergencyStop: () => void
-  emergencyActive: boolean
+
+  // ===== NEW AI ACTIONS =====
+  
+  // AI Engine Management
+  initializeAdvancedAI: () => Promise<void>
+  setAIEnabled: (enabled: boolean) => void
+  
+  // AI Predictions
+  requestAIPrediction: () => Promise<MoodPrediction | null>
+  applyAIPrediction: (prediction: MoodPrediction) => Promise<void>
+  recordMoodOutcome: (engagement: number, duration: number, feedback: number) => void
+  
+  // Learning Management
+  updateLearningMetrics: () => Promise<void>
+  exportLearningData: () => any
+  importLearningData: (data: any) => Promise<void>
+  resetLearning: () => Promise<void>
+  
+  // A/B Testing
+  startABTest: (moodA: string, moodB: string, context: string) => Promise<string>
+  recordABTestResult: (mood: string, engagement: number) => void
+  completeCurrentABTest: () => Promise<void>
+  setABTestingEnabled: (enabled: boolean) => void
+  
+  // AI Analytics
+  getAIInsights: () => {
+    predictionAccuracy: number
+    learningProgress: number
+    moodEffectiveness: Record<string, number>
+    recommendations: string[]
+  }
 }
 
 export const useMoodStore = create<MoodStore>()(
   subscribeWithSelector((set, get) => ({
-    // Initial state
+    // ===== INITIAL STATE =====
     systemActive: false,
     currentMood: {
       name: 'Contemplative',
@@ -342,13 +423,20 @@ export const useMoodStore = create<MoodStore>()(
       avgMovement: 0.4,
       audioLevel: 0.25,
       lightLevel: 0.7,
-      temperature: 22
+      temperature: 22,
+      // New fields
+      conversationalLevel: 0.3,
+      musicalContent: 0.2,
+      timeOfDay: 'afternoon',
+      dayOfWeek: 'weekday',
+      weather: 'sunny',
+      specialEvents: []
     },
     softwareConnections: [
       {
         id: 'qlab',
         name: 'QLab',
-        connected: false, // Start disconnected for real connections
+        connected: false,
         lastPing: 0,
         status: 'offline',
         ip: '192.168.1.10',
@@ -397,7 +485,7 @@ export const useMoodStore = create<MoodStore>()(
       }
     ],
     
-    // ⭐ NUOVO: OSC state
+    // OSC state
     oscController: null,
     oscEnabled: false,
     lastOSCMessage: null,
@@ -417,29 +505,55 @@ export const useMoodStore = create<MoodStore>()(
     
     simulationMode: true,
     emergencyActive: false,
+
+    // ===== NEW AI STATE =====
+    advancedAI: null,
+    aiEnabled: false,
     
-    // Existing Actions
+    aiPrediction: {
+      currentPrediction: null,
+      predictionHistory: [],
+      confidence: 0,
+      learningActive: false,
+      totalExperience: 0
+    },
+    
+    learningMetrics: null,
+    
+    abTesting: {
+      currentTest: null,
+      testHistory: [],
+      isTestingEnabled: false
+    },
+
+    // ===== EXISTING ACTIONS =====
     setSystemActive: (active) => set({ systemActive: active }),
     
     updateCurrentMood: (mood) => {
       const prevMood = get().currentMood
       set({ currentMood: mood })
       
-      // Add to history if mood actually changed
       if (prevMood.name !== mood.name) {
         get().addMoodToHistory(prevMood.name)
         
-        // ⭐ NUOVO: Apply mood to software when changed
+        // Apply mood to software if OSC enabled
         if (get().oscEnabled && !get().simulationMode) {
           get().applyCurrentMoodToSoftware()
         }
       }
     },
     
-    updateEnvironmentData: (data) =>
-      set((state) => ({
-        environmentData: { ...state.environmentData, ...data }
-      })),
+    updateEnvironmentData: (data) => {
+      const newData = { ...get().environmentData, ...data }
+      set({ environmentData: newData })
+      
+      // ⭐ NEW: Trigger AI prediction if AI is enabled
+      if (get().aiEnabled && get().systemActive) {
+        setTimeout(() => {
+          get().requestAIPrediction()
+        }, 1000) // Debounce predictions
+      }
+    },
     
     updateSoftwareConnection: (id, updates) =>
       set((state) => ({
@@ -467,29 +581,9 @@ export const useMoodStore = create<MoodStore>()(
       set({ moodHistory: newHistory })
     },
 
-    // ⭐ NUOVO: OSC Implementation
+    // ===== OSC ACTIONS (Existing) =====
     initializeOSC: async () => {
       try {
-        // Uncomment when OSCController is ready
-        // const { OSCController } = await import('../lib/protocols/OSCController')
-        // const controller = new OSCController()
-        
-        // Setup event listeners
-        // controller.onConnectionStatusChange((id, connected) => {
-        //   get().updateSoftwareConnection(id, { 
-        //     connected, 
-        //     status: connected ? 'online' : 'offline',
-        //     lastPing: connected ? Date.now() : 0
-        //   })
-        // })
-
-        // controller.onMessageSent((software, message) => {
-        //   set({ lastOSCMessage: { software, message, timestamp: Date.now() } })
-        // })
-
-        // set({ oscController: controller, oscEnabled: true })
-        
-        // For now, just enable OSC mode
         set({ oscEnabled: true })
         console.log('✅ OSC Controller initialized')
       } catch (error) {
@@ -499,75 +593,33 @@ export const useMoodStore = create<MoodStore>()(
     },
 
     connectToSoftware: async (softwareId: string) => {
-      const { oscController } = get()
-      if (!oscController) {
-        console.log('OSC Controller not initialized, using simulation')
-        get().updateSoftwareConnection(softwareId, { 
-          connected: true, 
-          status: 'online', 
-          lastPing: Date.now() 
-        })
-        return true
-      }
-
-      try {
-        // const connected = await oscController.connect(softwareId)
-        // return connected
-        
-        // Temporary simulation
-        get().updateSoftwareConnection(softwareId, { 
-          connected: true, 
-          status: 'online', 
-          lastPing: Date.now() 
-        })
-        return true
-      } catch (error) {
-        console.error(`Failed to connect to ${softwareId}:`, error)
-        get().updateSoftwareConnection(softwareId, { 
-          connected: false, 
-          status: 'error' 
-        })
-        return false
-      }
+      get().updateSoftwareConnection(softwareId, { 
+        connected: true, 
+        status: 'online', 
+        lastPing: Date.now() 
+      })
+      return true
     },
 
     disconnectFromSoftware: async (softwareId: string) => {
-      const { oscController } = get()
-      if (!oscController) {
-        get().updateSoftwareConnection(softwareId, { 
-          connected: false, 
-          status: 'offline', 
-          lastPing: 0 
-        })
-        return
-      }
-
-      try {
-        // await oscController.disconnect(softwareId)
-        get().updateSoftwareConnection(softwareId, { 
-          connected: false, 
-          status: 'offline', 
-          lastPing: 0 
-        })
-      } catch (error) {
-        console.error(`Failed to disconnect from ${softwareId}:`, error)
-      }
+      get().updateSoftwareConnection(softwareId, { 
+        connected: false, 
+        status: 'offline', 
+        lastPing: 0 
+      })
     },
 
-    // ⭐ CORE FUNCTION: Apply current mood to all connected software
     applyCurrentMoodToSoftware: async () => {
-      const { currentMood, oscController, softwareConnections } = get()
+      const { currentMood, softwareConnections } = get()
       
       console.log(`🎭 Applying mood "${currentMood.name}" to connected software...`)
       
-      // Get mood mapping
       const moodMapping = MOOD_MAPPINGS[currentMood.name]
       if (!moodMapping) {
         console.warn(`No mapping found for mood: ${currentMood.name}`)
         return
       }
 
-      // Apply to each connected software
       const promises: Promise<void>[] = []
 
       for (const connection of softwareConnections) {
@@ -580,19 +632,16 @@ export const useMoodStore = create<MoodStore>()(
                 promises.push(get().applyMoodToQLab(moodMapping.qlab))
               }
               break
-
             case 'resolume':
               if (moodMapping.resolume) {
                 promises.push(get().applyMoodToResolume(moodMapping.resolume))
               }
               break
-
             case 'chamsys':
               if (moodMapping.lighting) {
                 promises.push(get().applyMoodToChamsys(moodMapping.lighting))
               }
               break
-
             case 'grandma3':
               if (moodMapping.grandma3) {
                 promises.push(get().applyMoodToGrandMA3(moodMapping.grandma3))
@@ -608,7 +657,6 @@ export const useMoodStore = create<MoodStore>()(
       console.log(`✅ Mood "${currentMood.name}" applied to all connected software`)
     },
 
-    // Individual software application functions
     applyMoodToQLab: async (config: any) => {
       const commands: Promise<void>[] = []
       
@@ -702,26 +750,18 @@ export const useMoodStore = create<MoodStore>()(
     },
 
     sendOSCCommand: async (software: string, command: string, args: any[]) => {
-      const { oscController } = get()
-      
-      // Log the command
       console.log(`📤 OSC Command to ${software}: ${command}`, args)
       set({ lastOSCMessage: { software, message: `${command} ${args.join(' ')}`, timestamp: Date.now() } })
       
-      if (!oscController) {
+      if (!get().oscController) {
         console.log(`[SIMULATION] ${software}: ${command}`, args)
         return
       }
-
-      // Real OSC implementation will go here
-      // await oscController.sendToSoftware(software, command, args)
     },
     
     setSimulationMode: (enabled) => set({ simulationMode: enabled }),
     
     emergencyStop: async () => {
-      const { oscController } = get()
-      
       set({
         emergencyActive: true,
         systemActive: false,
@@ -735,25 +775,397 @@ export const useMoodStore = create<MoodStore>()(
         }
       })
       
-      // Send emergency stop to all software
-      if (oscController) {
-        try {
-          // await oscController.emergencyStopAll()
-          console.log('🛑 Emergency stop sent to all software')
-        } catch (error) {
-          console.error('Emergency stop failed:', error)
-        }
-      }
-      
-      // Auto-reset emergency after 30 seconds
       setTimeout(() => {
         set({ emergencyActive: false })
       }, 30000)
+    },
+
+    // ===== NEW AI ACTIONS =====
+    
+    initializeAdvancedAI: async () => {
+      try {
+        const ai = new AdvancedMoodAI()
+        set({ 
+          advancedAI: ai, 
+          aiEnabled: true,
+          aiPrediction: {
+            ...get().aiPrediction,
+            learningActive: true,
+            totalExperience: ai.getSystemStatus().totalExperience
+          }
+        })
+        
+        // Load initial learning metrics
+        await get().updateLearningMetrics()
+        
+        console.log('🧠 Advanced AI Engine initialized')
+      } catch (error) {
+        console.error('❌ Failed to initialize Advanced AI:', error)
+        set({ aiEnabled: false })
+      }
+    },
+
+    setAIEnabled: (enabled) => {
+      set({ aiEnabled: enabled })
+      if (enabled && !get().advancedAI) {
+        get().initializeAdvancedAI()
+      }
+    },
+
+    requestAIPrediction: async () => {
+      const { advancedAI, environmentData } = get()
+      if (!advancedAI || !get().aiEnabled) return null
+
+      try {
+        // Convert environment data to context data
+        const context: ContextData = {
+          vision: {
+            peopleCount: environmentData.peopleCount,
+            avgMovement: environmentData.avgMovement,
+            crowdDensity: environmentData.peopleCount / 50,
+            boundingBoxes: [],
+            lastUpdate: Date.now()
+          },
+          audio: {
+            energy: environmentData.audioLevel,
+            volumeLevel: environmentData.audioLevel,
+            spectralCentroid: 1000 + environmentData.audioLevel * 2000,
+            conversational: environmentData.conversationalLevel,
+            musical: environmentData.musicalContent,
+            complexity: environmentData.audioLevel,
+            lastUpdate: Date.now()
+          },
+          environmental: {
+            timeOfDay: environmentData.timeOfDay,
+            dayOfWeek: environmentData.dayOfWeek,
+            season: 'spring', // Could be calculated from date
+            weather: environmentData.weather,
+            specialEvents: environmentData.specialEvents
+          },
+          timestamp: Date.now()
+        }
+
+        const prediction = advancedAI.predictOptimalMood(context)
+        
+        // Update AI prediction state
+        set(state => ({
+          aiPrediction: {
+            ...state.aiPrediction,
+            currentPrediction: prediction,
+            confidence: prediction.confidence,
+            predictionHistory: [
+              {
+                timestamp: Date.now(),
+                prediction
+              },
+              ...state.aiPrediction.predictionHistory.slice(0, 19) // Keep last 20
+            ]
+          }
+        }))
+
+        console.log(`🧠 AI Prediction: ${prediction.recommendedMood} (${Math.round(prediction.confidence * 100)}% confidence)`)
+        return prediction
+
+      } catch (error) {
+        console.error('❌ AI prediction failed:', error)
+        return null
+      }
+    },
+
+    applyAIPrediction: async (prediction: MoodPrediction) => {
+      // Convert AI prediction to mood state
+      const newMood: MoodState = {
+        name: prediction.recommendedMood,
+        energy: prediction.parameters.energy,
+        valence: prediction.parameters.valence,
+        arousal: prediction.parameters.arousal,
+        color: getMoodColor(prediction.recommendedMood),
+        description: `AI-recommended: ${prediction.reasoning[0] || 'Optimal for current context'}`
+      }
+
+      // Apply the mood
+      get().updateCurrentMood(newMood)
+
+      // Record A/B test result if active
+      if (get().abTesting.currentTest?.isActive) {
+        // This would be called later when we have engagement data
+        // get().recordABTestResult(prediction.recommendedMood, engagementScore)
+      }
+
+      console.log(`🎭 Applied AI-recommended mood: ${prediction.recommendedMood}`)
+    },
+
+    recordMoodOutcome: (engagement: number, duration: number, feedback: number) => {
+      const { advancedAI, aiPrediction } = get()
+      if (!advancedAI || !aiPrediction.currentPrediction) return
+
+      try {
+        // Create context from current environment
+        const context: ContextData = get().environmentDataToContext()
+        
+        // Record outcome for learning
+        advancedAI.recordOutcome(context, aiPrediction.currentPrediction.recommendedMood, {
+          engagement,
+          duration,
+          audienceGrowth: engagement > 0.7 ? 0.1 : -0.05,
+          feedback
+        })
+
+        // Update prediction history with actual outcome
+        set(state => ({
+          aiPrediction: {
+            ...state.aiPrediction,
+            predictionHistory: state.aiPrediction.predictionHistory.map((entry, index) => 
+              index === 0 && entry.prediction === aiPrediction.currentPrediction
+                ? { ...entry, actualOutcome: { engagement, duration, feedback } }
+                : entry
+            )
+          }
+        }))
+
+        // Update learning metrics
+        get().updateLearningMetrics()
+
+        console.log(`📚 Recorded mood outcome: ${Math.round(engagement * 100)}% engagement`)
+
+      } catch (error) {
+        console.error('❌ Failed to record mood outcome:', error)
+      }
+    },
+
+    updateLearningMetrics: async () => {
+      const { advancedAI } = get()
+      if (!advancedAI) return
+
+      try {
+        const metrics = advancedAI.getLearningMetrics()
+        const systemStatus = advancedAI.getSystemStatus()
+        
+        set(state => ({
+          learningMetrics: metrics,
+          aiPrediction: {
+            ...state.aiPrediction,
+            totalExperience: systemStatus.totalExperience,
+            learningActive: systemStatus.isLearning
+          }
+        }))
+      } catch (error) {
+        console.error('❌ Failed to update learning metrics:', error)
+      }
+    },
+
+    exportLearningData: () => {
+      const { advancedAI } = get()
+      if (!advancedAI) return null
+
+      return {
+        aiData: advancedAI.exportLearningData(),
+        moodHistory: get().moodHistory,
+        audienceMetrics: get().audienceMetrics,
+        exportTimestamp: Date.now()
+      }
+    },
+
+    importLearningData: async (data: any) => {
+      const { advancedAI } = get()
+      if (!advancedAI || !data.aiData) return
+
+      try {
+        advancedAI.importLearningData(data.aiData)
+        
+        if (data.moodHistory) {
+          set({ moodHistory: data.moodHistory })
+        }
+        
+        if (data.audienceMetrics) {
+          set({ audienceMetrics: data.audienceMetrics })
+        }
+
+        await get().updateLearningMetrics()
+        console.log('✅ Learning data imported successfully')
+      } catch (error) {
+        console.error('❌ Failed to import learning data:', error)
+      }
+    },
+
+    resetLearning: async () => {
+      const { advancedAI } = get()
+      if (!advancedAI) return
+
+      try {
+        advancedAI.resetLearning()
+        
+        set({
+          aiPrediction: {
+            currentPrediction: null,
+            predictionHistory: [],
+            confidence: 0,
+            learningActive: false,
+            totalExperience: 0
+          },
+          learningMetrics: null,
+          abTesting: {
+            currentTest: null,
+            testHistory: [],
+            isTestingEnabled: get().abTesting.isTestingEnabled
+          }
+        })
+
+        console.log('🔄 Learning system reset')
+      } catch (error) {
+        console.error('❌ Failed to reset learning:', error)
+      }
+    },
+
+    // A/B Testing Actions
+    startABTest: async (moodA: string, moodB: string, context: string) => {
+      const { advancedAI } = get()
+      if (!advancedAI) return ''
+
+      try {
+        const testId = advancedAI.startABTest(moodA, moodB, context)
+        
+        set({
+          abTesting: {
+            ...get().abTesting,
+            currentTest: {
+              id: testId,
+              moodA,
+              moodB,
+              context,
+              sessionCount: 0,
+              isActive: true
+            }
+          }
+        })
+
+        console.log(`🧪 Started A/B test: ${moodA} vs ${moodB} (${testId})`)
+        return testId
+      } catch (error) {
+        console.error('❌ Failed to start A/B test:', error)
+        return ''
+      }
+    },
+
+    recordABTestResult: (mood: string, engagement: number) => {
+      const { advancedAI, abTesting } = get()
+      if (!advancedAI || !abTesting.currentTest?.isActive) return
+
+      try {
+        advancedAI.recordABTestResult(abTesting.currentTest.id, mood, engagement)
+        
+        set(state => ({
+          abTesting: {
+            ...state.abTesting,
+            currentTest: state.abTesting.currentTest ? {
+              ...state.abTesting.currentTest,
+              sessionCount: state.abTesting.currentTest.sessionCount + 1
+            } : null
+          }
+        }))
+
+        console.log(`🧪 Recorded A/B test result: ${mood} = ${Math.round(engagement * 100)}%`)
+      } catch (error) {
+        console.error('❌ Failed to record A/B test result:', error)
+      }
+    },
+
+    completeCurrentABTest: async () => {
+      const { advancedAI, abTesting } = get()
+      if (!advancedAI || !abTesting.currentTest) return
+
+      try {
+        // Get updated test results
+        const results = advancedAI.getABTestResults()
+        const latestResult = results[results.length - 1]
+        
+        set(state => ({
+          abTesting: {
+            ...state.abTesting,
+            currentTest: null,
+            testHistory: [...state.abTesting.testHistory, latestResult]
+          }
+        }))
+
+        console.log(`✅ A/B test completed. Winner: ${latestResult.winnerMood}`)
+      } catch (error) {
+        console.error('❌ Failed to complete A/B test:', error)
+      }
+    },
+
+    setABTestingEnabled: (enabled: boolean) => {
+      set(state => ({
+        abTesting: {
+          ...state.abTesting,
+          isTestingEnabled: enabled
+        }
+      }))
+    },
+
+    getAIInsights: () => {
+      const { learningMetrics, aiPrediction } = get()
+      
+      if (!learningMetrics) {
+        return {
+          predictionAccuracy: 0,
+          learningProgress: 0,
+          moodEffectiveness: {},
+          recommendations: ['Initialize AI system to start learning']
+        }
+      }
+
+      // Calculate insights
+      const moodEffectiveness = Object.entries(learningMetrics.moodEffectiveness)
+        .reduce((acc, [mood, stats]) => {
+          acc[mood] = stats.avgEngagement
+          return acc
+        }, {} as Record<string, number>)
+
+      const recommendations = generateAIRecommendations(learningMetrics, aiPrediction)
+
+      return {
+        predictionAccuracy: learningMetrics.averageAccuracy,
+        learningProgress: Math.min(1, learningMetrics.totalSessions / 100), // Progress to 100 sessions
+        moodEffectiveness,
+        recommendations
+      }
+    },
+
+    // Helper method to convert environment data to context
+    environmentDataToContext: (): ContextData => {
+      const env = get().environmentData
+      return {
+        vision: {
+          peopleCount: env.peopleCount,
+          avgMovement: env.avgMovement,
+          crowdDensity: env.peopleCount / 50,
+          boundingBoxes: [],
+          lastUpdate: Date.now()
+        },
+        audio: {
+          energy: env.audioLevel,
+          volumeLevel: env.audioLevel,
+          spectralCentroid: 1000 + env.audioLevel * 2000,
+          conversational: env.conversationalLevel,
+          musical: env.musicalContent,
+          complexity: env.audioLevel,
+          lastUpdate: Date.now()
+        },
+        environmental: {
+          timeOfDay: env.timeOfDay,
+          dayOfWeek: env.dayOfWeek,
+          season: 'spring',
+          weather: env.weather,
+          specialEvents: env.specialEvents
+        },
+        timestamp: Date.now()
+      }
     }
   }))
 )
 
-// Utility function for color conversion
+// ===== UTILITY FUNCTIONS =====
+
 function hexToRGB(hex: string): { r: number; g: number; b: number } {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
   return result ? {
@@ -763,7 +1175,60 @@ function hexToRGB(hex: string): { r: number; g: number; b: number } {
   } : { r: 255, g: 255, b: 255 }
 }
 
-// Selectors for optimized re-renders
+function getMoodColor(moodName: string): string {
+  const colors: Record<string, string> = {
+    'Energetic': '#EF4444',
+    'Social': '#10B981',
+    'Contemplative': '#8B5CF6',
+    'Mysterious': '#6366F1',
+    'Peaceful': '#06B6D4'
+  }
+  return colors[moodName] || '#8B5CF6'
+}
+
+function generateAIRecommendations(metrics: LearningMetrics, aiPrediction: AIPredictionState): string[] {
+  const recommendations: string[] = []
+
+  // Accuracy-based recommendations
+  if (metrics.averageAccuracy < 0.6) {
+    recommendations.push('System needs more training data for better predictions')
+  } else if (metrics.averageAccuracy > 0.8) {
+    recommendations.push('AI predictions are highly accurate - consider enabling auto-mode')
+  }
+
+  // Experience-based recommendations
+  if (metrics.totalSessions < 50) {
+    recommendations.push('Collect more session data to improve learning accuracy')
+  }
+
+  // Mood effectiveness recommendations
+  const moodStats = Object.entries(metrics.moodEffectiveness)
+  const bestMood = moodStats.reduce((best, [mood, stats]) => 
+    stats.avgEngagement > (best.stats?.avgEngagement || 0) ? { mood, stats } : best
+  , { mood: '', stats: null as any })
+
+  if (bestMood.mood) {
+    recommendations.push(`${bestMood.mood} mood shows highest engagement (${Math.round(bestMood.stats.avgEngagement * 100)}%)`)
+  }
+
+  // Time pattern recommendations
+  const timePatterns = metrics.patternRecognition.timePatterns
+  if (timePatterns.length > 0) {
+    const bestTime = timePatterns.reduce((best, pattern) => 
+      pattern.success > best.success ? pattern : best
+    )
+    recommendations.push(`${bestTime.preferredMood} works best during ${bestTime.timeRange}`)
+  }
+
+  // A/B testing recommendations
+  if (aiPrediction.totalExperience > 20 && !aiPrediction.predictionHistory.some(p => p.actualOutcome)) {
+    recommendations.push('Consider running A/B tests to validate mood effectiveness')
+  }
+
+  return recommendations.length > 0 ? recommendations : ['System learning optimally - no specific recommendations']
+}
+
+// ===== ENHANCED SELECTORS =====
 export const useSystemActive = () => useMoodStore((state) => state.systemActive)
 export const useCurrentMood = () => useMoodStore((state) => state.currentMood)
 export const useEnvironmentData = () => useMoodStore((state) => state.environmentData)
@@ -775,7 +1240,25 @@ export const useOSCStatus = () => useMoodStore((state) => ({
   lastMessage: state.lastOSCMessage 
 }))
 
-// Auto-simulation when system is active (existing code remains the same)
+// ⭐ NEW AI SELECTORS
+export const useAIStatus = () => useMoodStore((state) => ({
+  enabled: state.aiEnabled,
+  active: state.aiPrediction.learningActive,
+  experience: state.aiPrediction.totalExperience,
+  confidence: state.aiPrediction.confidence
+}))
+
+export const useAIPrediction = () => useMoodStore((state) => state.aiPrediction.currentPrediction)
+
+export const useLearningMetrics = () => useMoodStore((state) => state.learningMetrics)
+
+export const useABTestStatus = () => useMoodStore((state) => ({
+  enabled: state.abTesting.isTestingEnabled,
+  currentTest: state.abTesting.currentTest,
+  history: state.abTesting.testHistory
+}))
+
+// Auto-simulation enhanced with AI predictions
 useMoodStore.subscribe(
   (state) => state.systemActive,
   (systemActive) => {
@@ -787,16 +1270,32 @@ useMoodStore.subscribe(
           return
         }
         
+        // Enhanced environment simulation
         const environmentData = state.environmentData
+        const timeOfDay = getCurrentTimeOfDay()
+        
         const newData = {
           peopleCount: Math.max(1, environmentData.peopleCount + Math.floor((Math.random() - 0.5) * 4)),
           avgMovement: Math.max(0, Math.min(1, environmentData.avgMovement + (Math.random() - 0.5) * 0.2)),
-          audioLevel: Math.max(0, Math.min(1, environmentData.audioLevel + (Math.random() - 0.5) * 0.3))
+          audioLevel: Math.max(0, Math.min(1, environmentData.audioLevel + (Math.random() - 0.5) * 0.3)),
+          conversationalLevel: Math.max(0, Math.min(1, environmentData.conversationalLevel + (Math.random() - 0.5) * 0.2)),
+          musicalContent: Math.max(0, Math.min(1, environmentData.musicalContent + (Math.random() - 0.5) * 0.1)),
+          timeOfDay,
+          dayOfWeek: isWeekend() ? 'weekend' as const : 'weekday' as const
         }
         
         state.updateEnvironmentData(newData)
         
-        if (Math.random() < 0.2) {
+        // AI-driven mood changes (if AI enabled)
+        if (state.aiEnabled && Math.random() < 0.3) {
+          state.requestAIPrediction().then(prediction => {
+            if (prediction && prediction.confidence > 0.7) {
+              state.applyAIPrediction(prediction)
+            }
+          })
+        }
+        // Traditional mood changes (if AI disabled)
+        else if (!state.aiEnabled && Math.random() < 0.2) {
           const moods = [
             {
               name: 'Energetic',
@@ -824,18 +1323,32 @@ useMoodStore.subscribe(
             }
           ]
           
-          let targetMood = moods[2]
+          let targetMood = moods[2] // Default contemplative
           
           if (newData.peopleCount > 15 && newData.avgMovement > 0.6) {
-            targetMood = moods[0]
+            targetMood = moods[0] // Energetic
           } else if (newData.peopleCount > 8 && newData.audioLevel > 0.4) {
-            targetMood = moods[1]
+            targetMood = moods[1] // Social
           }
           
           state.updateCurrentMood(targetMood)
         }
         
-      }, 3000)
+      }, 3000) // Update every 3 seconds
     }
   }
 )
+
+// Helper functions for enhanced simulation
+function getCurrentTimeOfDay(): 'morning' | 'afternoon' | 'evening' | 'night' {
+  const hour = new Date().getHours()
+  if (hour >= 6 && hour < 12) return 'morning'
+  if (hour >= 12 && hour < 18) return 'afternoon'  
+  if (hour >= 18 && hour < 22) return 'evening'
+  return 'night'
+}
+
+function isWeekend(): boolean {
+  const day = new Date().getDay()
+  return day === 0 || day === 6 // Sunday or Saturday
+}
