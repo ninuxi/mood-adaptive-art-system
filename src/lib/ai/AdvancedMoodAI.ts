@@ -556,7 +556,7 @@ export class AdvancedMoodAI {
           volume: Math.random(),
           spectralCentroid: 1000 + Math.random() * 2000,
           conversational: Math.random(),
-          musical: Math.random(),
+          musicality: Math.random(),
           complexity: Math.random(),
           lastUpdate: Date.now()
         },
