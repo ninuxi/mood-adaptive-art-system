@@ -543,11 +543,13 @@ export class AdvancedMoodAI {
     sampleData.forEach((sample, index) => {
       const context: ContextData = {
         vision: {
-          peopleCount: 5 + Math.floor(Math.random() * 20),
+          peopleCount: Math.floor(Math.random() * 20),
           avgMovement: Math.random(),
+          energyLevel: Math.random(),
+          confidence: 0.7 + Math.random() * 0.3,
+          dominantAge: 'mixed' as const,
           crowdDensity: Math.random(),
-          boundingBoxes: [],
-          lastUpdate: Date.now()
+          boundingBoxes: []
         },
         audio: {
           energy: Math.random(),
