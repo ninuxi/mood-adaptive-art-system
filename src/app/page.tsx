@@ -22,29 +22,10 @@ import { SoftwareStatusPanel } from '@/components/dashboard/SoftwareStatusPanel'
 import { MoodSimulator } from '@/components/mood/MoodSimulator'
 import { LiveControl } from '@/components/dashboard/LiveControl'
 import { AnalyticsPanel } from '@/components/dashboard/AnalyticsPanel'
+import { AIAnalyticsPanel } from '@/components/dashboard/AIAnalyticsPanel'
 import { MoodVisualizer } from '@/components/mood/MoodVisualizer'
 import { CameraVision } from '@/components/vision/CameraVision'
 import { AudioAnalysis } from '@/components/audio/AudioAnalysis'
-
-// ⭐ TEMPORARY: Simple AI Analytics placeholder
-const TempAIAnalytics = () => {
-  return (
-    <div className="text-center py-16">
-      <Brain className="w-24 h-24 mx-auto text-purple-400 mb-6" />
-      <h3 className="text-2xl font-bold text-white mb-4">AI Analytics Panel</h3>
-      <p className="text-gray-400 mb-8">
-        Advanced AI features will be available here. 
-        This is a temporary placeholder while we resolve import issues.
-      </p>
-      <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 max-w-md mx-auto">
-        <p className="text-blue-400 text-sm">
-          ✅ AI Analytics tab is working<br/>
-          🔧 Full AI features loading...
-        </p>
-      </div>
-    </div>
-  )
-}
 
 type TabType = 'overview' | 'vision' | 'mood' | 'control' | 'ai-analytics' | 'analytics'
 
@@ -344,10 +325,10 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* ⭐ AI ANALYTICS - TEMPORARY PLACEHOLDER */}
+          {/* ⭐ AI ANALYTICS - REAL COMPONENT */}
           {activeTab === 'ai-analytics' && (
             <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6">
-              <TempAIAnalytics />
+              <AIAnalyticsPanel />
             </div>
           )}
 
