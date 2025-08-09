@@ -481,7 +481,7 @@ export class AdvancedMoodAI {
 
   private generateAccuracyTrend(): number[] {
     // Generate sample accuracy trend
-    const trend = []
+    const trend: number[] = [] // ✅ FIXED: Explicit type
     for (let i = 0; i < 10; i++) {
       trend.push(0.6 + (i * 0.02) + (Math.random() * 0.1))
     }
