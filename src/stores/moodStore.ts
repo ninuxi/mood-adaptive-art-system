@@ -824,7 +824,7 @@ export const useMoodStore = create<MoodStore>()(
             avgMovement: environmentData.avgMovement,
             crowdDensity: environmentData.peopleCount / 50,
             boundingBoxes: [],
-            lastUpdate: Date.now()
+            //lastUpdate: Date.now()
           },
           audio: {
             energy: environmentData.audioLevel,
