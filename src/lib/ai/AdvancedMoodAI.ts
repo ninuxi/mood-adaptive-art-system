@@ -1,4 +1,4 @@
-// src/lib/ai/AdvancedMoodAI.ts - COMPLETE FIXED VERSION
+// src/lib/ai/AdvancedMoodAI.ts - MODIFIED WITH FUSED INPUTS
 import { VisionData } from '@/lib/vision/VisionEngine'
 import { AudioData } from '@/lib/audio/AudioEngine'
 
@@ -147,10 +147,8 @@ class MoodNeuralNetwork {
   }
 
   train(inputs: number[], expectedOutputs: number[]): void {
-    // Simplified training
     const predictions = this.predict(inputs)
     
-    // Calculate basic error and adjust
     for (let i = 0; i < expectedOutputs.length; i++) {
       const error = expectedOutputs[i] - predictions[i]
       
@@ -207,20 +205,16 @@ export class AdvancedMoodAI {
     this.loadLearningData()
   }
 
-  // Main prediction function
   predictOptimalMood(context: ContextData): MoodPrediction {
     const nnInputs = this.contextToInputs(context)
     const nnOutputs = this.neuralNetwork.predict(nnInputs)
     
-    // Find mood with highest probability
     const maxIndex = nnOutputs.indexOf(Math.max(...nnOutputs))
     const recommendedMood = this.moodNames[maxIndex]
     const confidence = nnOutputs[maxIndex]
 
-    // Generate reasoning
     const reasoning = this.generateBasicReasoning(context, recommendedMood)
 
-    // Create alternative moods
     const sortedIndices = nnOutputs
       .map((prob, index) => ({ prob, index }))
       .sort((a, b) => b.prob - a.prob)
@@ -247,18 +241,37 @@ export class AdvancedMoodAI {
     }
   }
 
+  // ✅ FIXED: This method now creates "fused features" to understand input correlations.
   private contextToInputs(context: ContextData): number[] {
-    const vision = context.vision
-    const audio = context.audio
-    const env = context.environmental
+    const vision = context.vision;
+    const audio = context.audio;
+    const env = context.environmental;
 
+    // 1. Get base normalized values
+    const peopleNorm = Math.min(1, (vision?.peopleCount || 0) / 50);
+    const movement = vision?.avgMovement || 0;
+    const audioEnergy = audio?.energy || 0;
+    const conversational = audio?.conversational || 0;
+
+    // 2. Create fused features
+    
+    // Feature A: Overall Energy Level (mix of crowd, movement, and sound)
+    const overallEnergy = (peopleNorm * 0.2) + (movement * 0.4) + (audioEnergy * 0.4);
+
+    // Feature B: Silent Activity Index (high movement, low sound)
+    const silentActivity = movement * (1 - audioEnergy);
+
+    // Feature C: Social Index (crowded and conversational)
+    const socialIndex = (peopleNorm * 0.5) + (conversational * 0.5);
+
+    // 3. Return the new feature vector for the AI
     return [
-      Math.min(1, (vision?.peopleCount || 0) / 50),
-      vision?.avgMovement || 0,
-      audio?.energy || 0,
+      overallEnergy,
+      silentActivity,
+      socialIndex,
       this.timeToValue(env.timeOfDay),
       this.weatherToValue(env.weather || 'sunny')
-    ]
+    ];
   }
 
   private timeToValue(timeOfDay: string): number {
@@ -276,26 +289,22 @@ export class AdvancedMoodAI {
     const vision = context.vision
     const audio = context.audio
 
-    if (vision?.peopleCount) {
-      if (vision.peopleCount > 15) {
-        reasoning.push(`High crowd density (${vision.peopleCount} people) supports ${mood} mood`)
-      } else if (vision.peopleCount < 5) {
-        reasoning.push(`Low crowd density (${vision.peopleCount} people) aligns with ${mood} mood`)
-      }
+    if (vision && vision.peopleCount > 15 && vision.avgMovement > 0.6) {
+        reasoning.push(`High crowd energy (${vision.peopleCount} people, high movement) supports a ${mood} mood.`);
+    } else if (vision && vision.peopleCount < 5) {
+        reasoning.push(`Low crowd density (${vision.peopleCount} people) aligns with a ${mood} mood.`);
     }
 
-    if (audio?.energy) {
-      if (audio.energy > 0.6) {
-        reasoning.push(`High audio energy (${Math.round(audio.energy * 100)}%) matches ${mood} characteristics`)
-      } else if (audio.energy < 0.3) {
-        reasoning.push(`Low audio energy suggests ${mood} atmosphere`)
-      }
+    if (audio && vision && audio.energy < 0.2 && vision.avgMovement > 0.5) {
+        reasoning.push(`Detected quiet activity, suggesting a ${mood} mood.`);
+    } else if (audio && audio.energy > 0.6) {
+        reasoning.push(`High audio energy (${Math.round(audio.energy * 100)}%) matches ${mood} characteristics.`);
     }
 
-    const timeContext = context.environmental.timeOfDay
-    reasoning.push(`${timeContext.charAt(0).toUpperCase() + timeContext.slice(1)} time period favors ${mood} mood`)
+    const timeContext = context.environmental.timeOfDay;
+    reasoning.push(`The ${timeContext} period often favors a ${mood} mood.`);
 
-    return reasoning.length > 0 ? reasoning : [`AI recommends ${mood} based on current context`]
+    return reasoning.length > 0 ? reasoning : [`AI recommends ${mood} based on current context.`];
   }
 
   private estimateDuration(mood: string, context: ContextData): number {
@@ -351,7 +360,6 @@ export class AdvancedMoodAI {
       this.currentABTest.resultsB.push(engagement)
     }
 
-    // Auto-complete test after 50 sessions
     if (this.currentABTest.sessionCount >= 50) {
       this.completeABTest()
     }
@@ -394,12 +402,10 @@ export class AdvancedMoodAI {
       timestamp: Date.now()
     })
 
-    // Keep database manageable
     if (this.learningDatabase.length > 1000) {
       this.learningDatabase = this.learningDatabase.slice(-800)
     }
 
-    // Neural network training
     const inputs = this.contextToInputs(context)
     const targetOutputs = new Array(5).fill(0.1)
     const moodIndex = this.moodMappings[appliedMood as keyof typeof this.moodMappings]
@@ -410,11 +416,9 @@ export class AdvancedMoodAI {
     this.neuralNetwork.train(inputs, targetOutputs)
   }
 
-  // Analytics & Insights
   getLearningMetrics(): LearningMetrics {
     const totalSessions = this.learningDatabase.length
     
-    // Calculate mood effectiveness
     const moodEffectiveness: Record<string, any> = {}
     this.moodNames.forEach(mood => {
       const sessions = this.learningDatabase.filter(s => s.appliedMood === mood)
@@ -526,7 +530,6 @@ export class AdvancedMoodAI {
   }
 
   private loadLearningData(): void {
-    // Generate sample learning data for demonstration
     const sampleData = [
       { mood: 'Peaceful', engagement: 0.8, time: 'morning' },
       { mood: 'Social', engagement: 0.75, time: 'afternoon' },
@@ -546,7 +549,6 @@ export class AdvancedMoodAI {
           crowdDensity: Math.random(),
           boundingBoxes: []
         },
-        // ✅ FIXED: AudioData properties aligned with AudioEngine interface
         audio: {
           volume: Math.random(),
           frequency: 1000 + Math.random() * 2000,
