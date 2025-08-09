@@ -531,54 +531,56 @@ export class AdvancedMoodAI {
   }
 
   private loadLearningData(): void {
-    // Generate sample learning data for demonstration
-    const sampleData = [
-      { mood: 'Peaceful', engagement: 0.8, time: 'morning' },
-      { mood: 'Social', engagement: 0.75, time: 'afternoon' },
-      { mood: 'Energetic', engagement: 0.9, time: 'evening' },
-      { mood: 'Contemplative', engagement: 0.85, time: 'morning' },
-      { mood: 'Mysterious', engagement: 0.7, time: 'evening' }
-    ]
+  // Generate sample learning data for demonstration
+  const sampleData = [
+    { mood: 'Peaceful', engagement: 0.8, time: 'morning' },
+    { mood: 'Social', engagement: 0.75, time: 'afternoon' },
+    { mood: 'Energetic', engagement: 0.9, time: 'evening' },
+    { mood: 'Contemplative', engagement: 0.85, time: 'morning' },
+    { mood: 'Mysterious', engagement: 0.7, time: 'evening' }
+  ]
 
-    sampleData.forEach((sample, index) => {
-      const context: ContextData = {
-        vision: {
-          peopleCount: Math.floor(Math.random() * 20),
-          avgMovement: Math.random(),
-          energyLevel: Math.random(),
-          confidence: 0.7 + Math.random() * 0.3,
-          dominantAge: 'mixed' as const,
-          crowdDensity: Math.random(),
-          boundingBoxes: []
-        },
-        audio: {
-          energy: Math.random(),
-          volume: Math.random(),
-          spectralCentroid: 1000 + Math.random() * 2000,
-          conversational: Math.random(),
-          musicality: Math.random(),
-          complexity: Math.random(),
-          lastUpdate: Date.now()
-        },
-        environmental: {
-          timeOfDay: sample.time as any,
-          dayOfWeek: index % 2 === 0 ? 'weekday' : 'weekend',
-          season: 'spring'
-        },
-        timestamp: Date.now() - (index * 3600000)
-      }
+  sampleData.forEach((sample, index) => {
+    const context: ContextData = {
+      vision: {
+        peopleCount: Math.floor(Math.random() * 20),
+        avgMovement: Math.random(),
+        energyLevel: Math.random(),
+        confidence: 0.7 + Math.random() * 0.3,
+        dominantAge: 'mixed' as const,
+        crowdDensity: Math.random(),
+        boundingBoxes: []
+      },
+      // ✅ FIXED AUDIO DATA - Matches AudioData interface exactly
+      audio: {
+        volume: Math.random(),
+        frequency: 1000 + Math.random() * 2000,
+        energy: Math.random(),
+        conversational: Math.random(),
+        musicality: Math.random(),
+        ambientNoise: Math.random(),
+        spectralCentroid: 1000 + Math.random() * 2000,
+        spectralRolloff: 2000 + Math.random() * 3000,
+        zeroCrossingRate: Math.random()
+      },
+      environmental: {
+        timeOfDay: sample.time as any,
+        dayOfWeek: index % 2 === 0 ? 'weekday' : 'weekend',
+        season: 'spring'
+      },
+      timestamp: Date.now() - (index * 3600000)
+    }
 
-      this.learningDatabase.push({
-        context,
-        appliedMood: sample.mood,
-        outcome: {
-          engagement: sample.engagement,
-          duration: 300 + Math.random() * 600,
-          audienceGrowth: (sample.engagement - 0.5) * 0.4,
-          feedback: sample.engagement * 0.9
-        },
-        timestamp: Date.now() - (index * 3600000)
-      })
+    this.learningDatabase.push({
+      context,
+      appliedMood: sample.mood,
+      outcome: {
+        engagement: sample.engagement,
+        duration: 300 + Math.random() * 600,
+        audienceGrowth: (sample.engagement - 0.5) * 0.4,
+        feedback: sample.engagement * 0.9
+      },
+      timestamp: Date.now() - (index * 3600000)
     })
-  }
+  })
 }
