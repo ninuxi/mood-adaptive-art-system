@@ -430,7 +430,7 @@ export function AudioAnalysis({ isActive, onAudioData }: AudioAnalysisProps) {
               unit="%"
               icon={<Music className="w-4 h-4" />}
               color="green"
-              description="Musical content"
+              description="Musicalily content"
             />
             
             <AnalysisCard
