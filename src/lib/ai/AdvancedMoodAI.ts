@@ -1,4 +1,4 @@
-// src/lib/ai/AdvancedMoodAI.ts - FIXED TypeScript errors
+// src/lib/ai/AdvancedMoodAI.ts - COMPLETE FIXED VERSION
 import { VisionData } from '@/lib/vision/VisionEngine'
 import { AudioData } from '@/lib/audio/AudioEngine'
 
@@ -79,10 +79,10 @@ export interface ABTestResult {
   endDate: number
 }
 
-// Simplified Neural Network (fixed types)
+// Simplified Neural Network
 class MoodNeuralNetwork {
-  private weights: number[][][]  // ✅ FIXED: 3D array for proper matrix storage
-  private biases: number[][]      // ✅ FIXED: 2D array for layer biases
+  private weights: number[][][] = []
+  private biases: number[][] = []
   private learningRate = 0.01
 
   constructor() {
@@ -122,7 +122,7 @@ class MoodNeuralNetwork {
   }
 
   predict(inputs: number[]): number[] {
-    let current = [...inputs] // Copy input array
+    let current = [...inputs]
 
     // Forward pass through network
     for (let layer = 0; layer < this.weights.length; layer++) {
@@ -147,7 +147,7 @@ class MoodNeuralNetwork {
   }
 
   train(inputs: number[], expectedOutputs: number[]): void {
-    // Simplified training (just for basic functionality)
+    // Simplified training
     const predictions = this.predict(inputs)
     
     // Calculate basic error and adjust
@@ -155,7 +155,6 @@ class MoodNeuralNetwork {
       const error = expectedOutputs[i] - predictions[i]
       
       if (Math.abs(error) > 0.1) {
-        // Simple weight adjustment for demonstration
         const outputLayerIndex = this.weights.length - 1
         const outputWeights = this.weights[outputLayerIndex]
         
@@ -208,9 +207,8 @@ export class AdvancedMoodAI {
     this.loadLearningData()
   }
 
-  // 🎯 MAIN PREDICTION FUNCTION (Simplified for deployment)
+  // Main prediction function
   predictOptimalMood(context: ContextData): MoodPrediction {
-    // Simplified prediction logic for stable deployment
     const nnInputs = this.contextToInputs(context)
     const nnOutputs = this.neuralNetwork.predict(nnInputs)
     
@@ -219,10 +217,10 @@ export class AdvancedMoodAI {
     const recommendedMood = this.moodNames[maxIndex]
     const confidence = nnOutputs[maxIndex]
 
-    // Generate basic reasoning
+    // Generate reasoning
     const reasoning = this.generateBasicReasoning(context, recommendedMood)
 
-    // Create basic alternative moods
+    // Create alternative moods
     const sortedIndices = nnOutputs
       .map((prob, index) => ({ prob, index }))
       .sort((a, b) => b.prob - a.prob)
@@ -301,7 +299,6 @@ export class AdvancedMoodAI {
   }
 
   private estimateDuration(mood: string, context: ContextData): number {
-    // Basic duration estimation (in seconds)
     const baseTime = 300 // 5 minutes
     const adjustments: Record<string, number> = {
       'Energetic': 0.8,
@@ -326,7 +323,7 @@ export class AdvancedMoodAI {
     return energyMap[mood] || 0.5
   }
 
-  // 🧪 A/B TESTING (Simplified)
+  // A/B Testing
   startABTest(moodA: string, moodB: string, context: string): string {
     const testId = `ab_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
     
@@ -383,7 +380,7 @@ export class AdvancedMoodAI {
     this.currentABTest = undefined
   }
 
-  // 🔄 LEARNING MANAGEMENT
+  // Learning management
   recordOutcome(context: ContextData, appliedMood: string, outcome: {
     engagement: number
     duration: number
@@ -402,7 +399,7 @@ export class AdvancedMoodAI {
       this.learningDatabase = this.learningDatabase.slice(-800)
     }
 
-    // Simple neural network training
+    // Neural network training
     const inputs = this.contextToInputs(context)
     const targetOutputs = new Array(5).fill(0.1)
     const moodIndex = this.moodMappings[appliedMood as keyof typeof this.moodMappings]
@@ -413,7 +410,7 @@ export class AdvancedMoodAI {
     this.neuralNetwork.train(inputs, targetOutputs)
   }
 
-  // 📈 ANALYTICS & INSIGHTS
+  // Analytics & Insights
   getLearningMetrics(): LearningMetrics {
     const totalSessions = this.learningDatabase.length
     
@@ -457,7 +454,6 @@ export class AdvancedMoodAI {
   private calculateAccuracy(): number {
     if (this.learningDatabase.length === 0) return 0.7
     
-    // Simple accuracy calculation
     const successful = this.learningDatabase.filter(s => s.outcome.engagement > 0.7).length
     return successful / this.learningDatabase.length
   }
@@ -480,8 +476,7 @@ export class AdvancedMoodAI {
   }
 
   private generateAccuracyTrend(): number[] {
-    // Generate sample accuracy trend
-    const trend: number[] = [] // ✅ FIXED: Explicit type
+    const trend: number[] = []
     for (let i = 0; i < 10; i++) {
       trend.push(0.6 + (i * 0.02) + (Math.random() * 0.1))
     }
@@ -531,56 +526,57 @@ export class AdvancedMoodAI {
   }
 
   private loadLearningData(): void {
-  // Generate sample learning data for demonstration
-  const sampleData = [
-    { mood: 'Peaceful', engagement: 0.8, time: 'morning' },
-    { mood: 'Social', engagement: 0.75, time: 'afternoon' },
-    { mood: 'Energetic', engagement: 0.9, time: 'evening' },
-    { mood: 'Contemplative', engagement: 0.85, time: 'morning' },
-    { mood: 'Mysterious', engagement: 0.7, time: 'evening' }
-  ]
+    // Generate sample learning data for demonstration
+    const sampleData = [
+      { mood: 'Peaceful', engagement: 0.8, time: 'morning' },
+      { mood: 'Social', engagement: 0.75, time: 'afternoon' },
+      { mood: 'Energetic', engagement: 0.9, time: 'evening' },
+      { mood: 'Contemplative', engagement: 0.85, time: 'morning' },
+      { mood: 'Mysterious', engagement: 0.7, time: 'evening' }
+    ]
 
-  sampleData.forEach((sample, index) => {
-    const context: ContextData = {
-      vision: {
-        peopleCount: Math.floor(Math.random() * 20),
-        avgMovement: Math.random(),
-        energyLevel: Math.random(),
-        confidence: 0.7 + Math.random() * 0.3,
-        dominantAge: 'mixed' as const,
-        crowdDensity: Math.random(),
-        boundingBoxes: []
-      },
-      // ✅ FIXED AUDIO DATA - Matches AudioData interface exactly
-      audio: {
-        volume: Math.random(),
-        frequency: 1000 + Math.random() * 2000,
-        energy: Math.random(),
-        conversational: Math.random(),
-        musicality: Math.random(),
-        ambientNoise: Math.random(),
-        spectralCentroid: 1000 + Math.random() * 2000,
-        spectralRolloff: 2000 + Math.random() * 3000,
-        zeroCrossingRate: Math.random()
-      },
-      environmental: {
-        timeOfDay: sample.time as any,
-        dayOfWeek: index % 2 === 0 ? 'weekday' : 'weekend',
-        season: 'spring'
-      },
-      timestamp: Date.now() - (index * 3600000)
-    }
+    sampleData.forEach((sample, index) => {
+      const context: ContextData = {
+        vision: {
+          peopleCount: Math.floor(Math.random() * 20),
+          avgMovement: Math.random(),
+          energyLevel: Math.random(),
+          confidence: 0.7 + Math.random() * 0.3,
+          dominantAge: 'mixed' as const,
+          crowdDensity: Math.random(),
+          boundingBoxes: []
+        },
+        // ✅ FIXED: AudioData properties aligned with AudioEngine interface
+        audio: {
+          volume: Math.random(),
+          frequency: 1000 + Math.random() * 2000,
+          energy: Math.random(),
+          conversational: Math.random(),
+          musicality: Math.random(),
+          ambientNoise: Math.random(),
+          spectralCentroid: 1000 + Math.random() * 2000,
+          spectralRolloff: 2000 + Math.random() * 3000,
+          zeroCrossingRate: Math.random()
+        },
+        environmental: {
+          timeOfDay: sample.time as any,
+          dayOfWeek: index % 2 === 0 ? 'weekday' : 'weekend',
+          season: 'spring'
+        },
+        timestamp: Date.now() - (index * 3600000)
+      }
 
-    this.learningDatabase.push({
-      context,
-      appliedMood: sample.mood,
-      outcome: {
-        engagement: sample.engagement,
-        duration: 300 + Math.random() * 600,
-        audienceGrowth: (sample.engagement - 0.5) * 0.4,
-        feedback: sample.engagement * 0.9
-      },
-      timestamp: Date.now() - (index * 3600000)
+      this.learningDatabase.push({
+        context,
+        appliedMood: sample.mood,
+        outcome: {
+          engagement: sample.engagement,
+          duration: 300 + Math.random() * 600,
+          audienceGrowth: (sample.engagement - 0.5) * 0.4,
+          feedback: sample.engagement * 0.9
+        },
+        timestamp: Date.now() - (index * 3600000)
+      })
     })
-  })
+  }
 }
